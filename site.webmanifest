@@ -1,0 +1,17 @@
+{
+  "name": "The Daddy's Cafe",
+  "short_name": "Daddy's Cafe",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#090909",
+  "theme_color": "#090909",
+  "description": "Direct ordering menu for The Daddy's Cafe, Silchar.",
+  "icons": [
+    {
+      "src": "assets/logo.png",
+      "sizes": "700x700",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
