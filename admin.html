@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin • The Daddy's Cafe</title><link rel="stylesheet" href="admin.css"></head><body>
+<header><div><strong>The Daddy's Cafe</strong><span>Admin Dashboard</span></div><a href="index.html">View Store</a></header>
+<main>
+<section class="stats" id="stats"></section>
+<nav><button class="tab active" data-tab="orders">Orders</button><button class="tab" data-tab="inventory">Inventory & Menu</button><button class="tab" data-tab="promos">Promo Codes</button></nav>
+<section id="orders" class="panel active"><div class="toolbar"><h2>Orders</h2><select id="orderFilter"><option>All</option><option>Paid</option><option>Preparing</option><option>Ready</option><option>Out for Delivery</option><option>Completed</option><option>Cancelled</option></select></div><div id="ordersList"></div></section>
+<section id="inventory" class="panel">
+<div class="toolbar"><div><h2>Inventory & Menu</h2><p>Add, edit or remove menu items, descriptions, images, availability and stock on this device.</p></div><button id="resetCatalog">Reset menu changes</button></div>
+<article class="add-item-card">
+  <div class="add-item-title"><div><h3>Add New Item</h3><p>Create a new dish and publish it to the customer menu on this device.</p></div></div>
+  <div class="add-item-grid">
+    <input id="newName" placeholder="Item name *">
+    <input id="newPrice" type="number" min="1" step="1" placeholder="Price ₹ *">
+    <input id="newCategory" list="categoryOptions" placeholder="Category *">
+    <datalist id="categoryOptions"></datalist>
+    <input id="newStock" type="number" min="0" value="999" placeholder="Stock">
+    <textarea id="newDescription" placeholder="Item description"></textarea>
+    <input id="newImage" type="url" placeholder="Food image URL (https://...)">
+    <label class="switch"><input id="newAvailable" type="checkbox" checked> Available</label>
+    <label class="switch"><input id="newBestseller" type="checkbox"> Bestseller</label>
+    <button id="addNewItem" class="save">+ Add Item</button>
+  </div>
+  <div id="addItemMessage" class="form-message" aria-live="polite"></div>
+</article>
+<div id="inventoryList"></div></section>
+<section id="promos" class="panel">
+<div class="toolbar"><div><h2>Promo Codes</h2><p>Create All Users, New Users Only, or Special one-use-per-number promos.</p></div></div>
+<article class="add-item-card"><div class="add-item-grid">
+<input id="promoCode" placeholder="Promo code *"><select id="promoAudience"><option value="all">All Users — reusable</option><option value="new">New Users Only</option><option value="special">Special — once per number</option></select>
+<select id="promoDiscountType"><option value="percent">Percentage %</option><option value="flat">Flat ₹</option></select><input id="promoValue" type="number" min="1" placeholder="Discount value *">
+<input id="promoMinOrder" type="number" min="0" placeholder="Minimum order ₹"><input id="promoMaxDiscount" type="number" min="0" placeholder="Maximum discount ₹ (optional)">
+<label>Valid from<input id="promoFrom" type="date"></label><label>Valid until<input id="promoUntil" type="date"></label>
+<input id="promoUsageLimit" type="number" min="0" placeholder="Total usage limit (optional)"><label class="switch"><input id="promoActive" type="checkbox" checked> Active</label>
+<button id="savePromo" class="save">+ Save Promo</button></div><div id="promoAdminMsg" class="form-message"></div></article><div id="promoList"></div></section>
+</main><script src="admin.js"></script></body></html>
