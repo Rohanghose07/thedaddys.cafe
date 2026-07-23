@@ -496,11 +496,44 @@
       ></textarea>
 
 
-      <input
-        id="newImage"
-        type="url"
-        placeholder="Food image URL (https://...)"
-      >
+      <div class="image-upload-field">
+
+  <label for="newImageFile">
+    Food Image
+  </label>
+
+  <input
+    id="newImageFile"
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+  >
+
+  <div
+    id="newImagePreviewWrap"
+    style="display:none; margin-top:10px;"
+  >
+
+    <img
+      id="newImagePreview"
+      alt="Food image preview"
+      style="
+        width:100%;
+        max-width:220px;
+        height:150px;
+        object-fit:cover;
+        border-radius:12px;
+      "
+    >
+
+  </div>
+
+  <div
+    id="newImageUploadStatus"
+    class="form-message"
+    aria-live="polite"
+  ></div>
+
+</div>
 
 
       <label class="switch">
