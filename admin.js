@@ -1,3 +1,24 @@
+console.log("Supabase client:", window.supabaseClient);
+
+async function testSupabaseConnection() {
+  try {
+    const { data, error } = await window.supabaseClient
+      .from("categories")
+      .select("*")
+      .limit(1);
+
+    if (error) {
+      console.error("Supabase test failed:", error);
+      return;
+    }
+
+    console.log("Supabase connected successfully:", data);
+  } catch (error) {
+    console.error("Connection error:", error);
+  }
+}
+
+testSupabaseConnection();
 "use strict";
 const BASE_MENU = [
 ["Starters","Daddy's Crispy Chicken Pakoda (10 Pcs)",130],["Starters","Classic Egg Devil (2 Pcs)",99],["Starters","Cheesy Chicken Balls (6 Pcs)",170],["Gravy Items","Chilli Chicken",160],["Gravy Items","Chicken 65",160],["Gravy Items","Chilli Paneer",130],["Gravy Items","Chilli Baby Corn",120],
