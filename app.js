@@ -1,10 +1,10 @@
-
 "use strict";
 
 /**
- * The Daddy's Cafe — storefront configuration.
- * WhatsApp number format: country code + number, without "+" or spaces.
+ * The Daddy's Cafe — Storefront
+ * Supabase-powered live menu with local fallback.
  */
+
 const STORE_CONFIG = Object.freeze({
   name: "The Daddy's Cafe",
   city: "Silchar",
@@ -17,7 +17,15 @@ const STORE_CONFIG = Object.freeze({
 const WHATSAPP_NUMBER = STORE_CONFIG.whatsappNumber;
 const DISPLAY_NUMBER = STORE_CONFIG.displayPhone;
 
-const menu = [
+
+/* =========================================================
+   FALLBACK MENU
+
+   This is used only if Supabase cannot be reached.
+========================================================= */
+
+const FALLBACK_MENU = [
+
   {category:"Starters",name:"Daddy's Crispy Chicken Pakoda (10 Pcs)",price:130},
   {category:"Starters",name:"Classic Egg Devil (2 Pcs)",price:99},
   {category:"Starters",name:"Cheesy Chicken Balls (6 Pcs)",price:170},
@@ -32,6 +40,7 @@ const menu = [
   {category:"Fried Rice",subcategory:"Classic",name:"Chicken Fried Rice",price:100},
   {category:"Fried Rice",subcategory:"Classic",name:"Egg Chicken Fried Rice",price:120},
   {category:"Fried Rice",subcategory:"Classic",name:"Baby Corn Fried Rice",price:90},
+
   {category:"Fried Rice",subcategory:"Schezwan",name:"Veg Schezwan Fried Rice",price:90},
   {category:"Fried Rice",subcategory:"Schezwan",name:"Egg Schezwan Fried Rice",price:110},
   {category:"Fried Rice",subcategory:"Schezwan",name:"Chicken Schezwan Fried Rice",price:130},
@@ -43,6 +52,7 @@ const menu = [
   {category:"Hakka Noodles",subcategory:"Classic",name:"Chicken Hakka Noodles",price:100},
   {category:"Hakka Noodles",subcategory:"Classic",name:"Egg Chicken Hakka Noodles",price:120},
   {category:"Hakka Noodles",subcategory:"Classic",name:"Baby Corn Hakka Noodles",price:90},
+
   {category:"Hakka Noodles",subcategory:"Schezwan",name:"Veg Schezwan Noodles",price:90},
   {category:"Hakka Noodles",subcategory:"Schezwan",name:"Egg Schezwan Noodles",price:110},
   {category:"Hakka Noodles",subcategory:"Schezwan",name:"Chicken Schezwan Noodles",price:130},
@@ -74,269 +84,1511 @@ const menu = [
   {category:"Indian Breads",name:"Butter Roti",price:15},
   {category:"Indian Breads",name:"Paratha",price:30},
   {category:"Indian Breads",name:"Masala Omelette (Double Egg)",price:60}
+
 ];
 
+
+/* =========================================================
+   APPLICATION STATE
+========================================================= */
+
+let liveCatalog = [];
+
 let cart = [];
+
 try {
-  const savedCart = JSON.parse(localStorage.getItem("tdcCart") || "[]");
-  cart = Array.isArray(savedCart) ? savedCart : [];
+
+  const savedCart =
+    JSON.parse(
+      localStorage.getItem("tdcCart") || "[]"
+    );
+
+  cart =
+    Array.isArray(savedCart)
+      ? savedCart
+      : [];
+
 } catch {
+
   cart = [];
+
   localStorage.removeItem("tdcCart");
+
 }
+
 let activeCategory = "All";
+
 let orderType = "Takeaway";
 
-const $ = s => document.querySelector(s);
-const $$ = s => [...document.querySelectorAll(s)];
-const money = n => `₹${n}`;
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const $ = selector =>
+  document.querySelector(selector);
+
+const $$ = selector =>
+  [...document.querySelectorAll(selector)];
+
+const money = value =>
+  `₹${Number(value || 0)}`;
+
 
 const CATEGORY_IMAGE = {
-  "Starters":"🍗", "Gravy Items":"🍲", "Fried Rice":"🍚", "Hakka Noodles":"🍜",
-  "Kolkata Rolls":"🌯", "Grilled Sandwiches":"🥪", "Momos":"🥟", "Maggi":"🍝", "Indian Breads":"🫓"
+
+  "Starters":"🍗",
+
+  "Gravy Items":"🍲",
+
+  "Fried Rice":"🍚",
+
+  "Hakka Noodles":"🍜",
+
+  "Kolkata Rolls":"🌯",
+
+  "Grilled Sandwiches":"🥪",
+
+  "Momos":"🥟",
+
+  "Maggi":"🍝",
+
+  "Indian Breads":"🫓"
+
 };
 
+
+/* =========================================================
+   DEFAULT DESCRIPTION
+========================================================= */
+
 function defaultDescription(item){
-  const name = item.name.toLowerCase();
-  if(name.includes("fried rice")) return "Wok-tossed rice prepared fresh with aromatic seasoning and classic Indo-Chinese flavours.";
-  if(name.includes("noodles")) return "Freshly wok-tossed noodles with vegetables, seasoning and bold Indo-Chinese flavour.";
-  if(name.includes("roll")) return "Fresh Kolkata-style roll wrapped in a soft paratha with flavourful filling and house seasoning.";
-  if(name.includes("momo")) return "Juicy dumplings prepared fresh and served with a punchy house-style accompaniment.";
-  if(name.includes("sandwich")) return "Freshly grilled sandwich with a crisp exterior and a generous savoury filling.";
-  if(name.includes("maggi")) return "Comforting masala noodles tossed hot and fresh for a quick, flavour-packed bite.";
-  if(name.includes("chilli") || name.includes("65")) return "Bold Indo-Chinese preparation with a savoury, spicy and satisfying finish.";
-  if(name.includes("pakoda") || name.includes("balls") || name.includes("devil")) return "Crisp, freshly prepared snack made for sharing or enjoying as a hearty starter.";
+
+  const name =
+    String(item.name || "")
+      .toLowerCase();
+
+  if(name.includes("fried rice"))
+
+    return "Wok-tossed rice prepared fresh with aromatic seasoning and classic Indo-Chinese flavours.";
+
+
+  if(name.includes("noodles"))
+
+    return "Freshly wok-tossed noodles with vegetables, seasoning and bold Indo-Chinese flavour.";
+
+
+  if(name.includes("roll"))
+
+    return "Fresh Kolkata-style roll wrapped in a soft paratha with flavourful filling and house seasoning.";
+
+
+  if(name.includes("momo"))
+
+    return "Juicy dumplings prepared fresh and served with a punchy house-style accompaniment.";
+
+
+  if(name.includes("sandwich"))
+
+    return "Freshly grilled sandwich with a crisp exterior and a generous savoury filling.";
+
+
+  if(name.includes("maggi"))
+
+    return "Comforting masala noodles tossed hot and fresh for a quick, flavour-packed bite.";
+
+
+  if(
+    name.includes("chilli") ||
+    name.includes("65")
+  )
+
+    return "Bold Indo-Chinese preparation with a savoury, spicy and satisfying finish.";
+
+
+  if(
+    name.includes("pakoda") ||
+    name.includes("balls") ||
+    name.includes("devil")
+  )
+
+    return "Crisp, freshly prepared snack made for sharing or enjoying as a hearty starter.";
+
+
   return "Freshly prepared to order with The Daddy's Cafe house-style flavours.";
+
 }
+
+
+/* =========================================================
+   NORMALIZE SUPABASE ROW
+
+   Handles likely column names safely.
+========================================================= */
+
+function normalizeMenuItem(row, index){
+
+  const available =
+    row.is_available !== undefined
+      ? row.is_available
+      : row.available !== undefined
+        ? row.available
+        : true;
+
+
+  const bestseller =
+    row.is_bestseller !== undefined
+      ? row.is_bestseller
+      : row.bestseller !== undefined
+        ? row.bestseller
+        : false;
+
+
+  const image =
+    row.image_url ||
+    row.image ||
+    "";
+
+
+  const item = {
+
+    id:
+      row.id ??
+      `supabase-${index + 1}`,
+
+    name:
+      row.name || "",
+
+    category:
+      row.category || "Other",
+
+    subcategory:
+      row.subcategory || "",
+
+    price:
+      Number(row.price || 0),
+
+    description:
+      row.description || "",
+
+    image,
+
+    stock:
+      Number.isFinite(Number(row.stock))
+        ? Number(row.stock)
+        : 999,
+
+    available:
+      available !== false,
+
+    bestseller:
+      bestseller === true
+
+  };
+
+
+  if(!item.description){
+
+    item.description =
+      defaultDescription(item);
+
+  }
+
+
+  return item;
+
+}
+
+
+/* =========================================================
+   FALLBACK CATALOG
+========================================================= */
+
+function createFallbackCatalog(){
+
+  return FALLBACK_MENU.map(
+    (item, index) => ({
+
+      ...item,
+
+      id:
+        `fallback-${index + 1}`,
+
+      description:
+        item.description ||
+        defaultDescription(item),
+
+      image:
+        item.image || "",
+
+      stock:
+        Number.isFinite(Number(item.stock))
+          ? Number(item.stock)
+          : 999,
+
+      available:
+        item.available !== false,
+
+      bestseller:
+        item.bestseller === true
+
+    })
+  );
+
+}
+
+
+/* =========================================================
+   LOAD MENU FROM SUPABASE
+========================================================= */
+
+async function loadMenuFromSupabase(){
+
+  const menuGrid =
+    $("#menuGrid");
+
+
+  if(menuGrid){
+
+    menuGrid.innerHTML =
+      '<div class="empty-cart">Loading menu...</div>';
+
+  }
+
+
+  try {
+
+    if(!window.supabaseClient){
+
+      throw new Error(
+        "Supabase client is not available. Check supabase-config.js."
+      );
+
+    }
+
+
+    const {
+      data,
+      error
+    } =
+      await window.supabaseClient
+        .from("menu_items")
+        .select("*");
+
+
+    if(error){
+
+      throw error;
+
+    }
+
+
+    if(!Array.isArray(data)){
+
+      throw new Error(
+        "Invalid menu data returned by Supabase."
+      );
+
+    }
+
+
+    if(data.length === 0){
+
+      console.warn(
+        "Supabase menu_items is empty. Using fallback menu."
+      );
+
+      liveCatalog =
+        createFallbackCatalog();
+
+    } else {
+
+      liveCatalog =
+        data
+          .map(normalizeMenuItem)
+          .filter(
+            item =>
+              item.name &&
+              item.category
+          );
+
+    }
+
+
+    console.log(
+      "Menu loaded from Supabase:",
+      liveCatalog.length,
+      "items"
+    );
+
+
+  } catch(error){
+
+    console.error(
+      "Supabase menu load failed:",
+      error
+    );
+
+
+    liveCatalog =
+      createFallbackCatalog();
+
+  }
+
+
+  renderCategories();
+
+  renderMenu();
+
+}
+
+
+/* =========================================================
+   RETURN CURRENT CATALOG
+========================================================= */
 
 function loadCatalog(){
-  let saved = {};
-  try {
-    const parsed = JSON.parse(localStorage.getItem("tdcCatalogOverrides") || "{}");
-    saved = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    saved = {};
-    localStorage.removeItem("tdcCatalogOverrides");
-  }
-  let custom = [], removed = [];
-  try { custom = JSON.parse(localStorage.getItem("tdcCustomMenuItems") || "[]"); } catch {}
-  try { removed = JSON.parse(localStorage.getItem("tdcRemovedMenuItems") || "[]"); } catch {}
-  const removedSet = new Set(removed);
-  const combined = [...menu.map((x,i)=>({...x,id:`item-${i+1}`,custom:false})), ...custom.map((x,i)=>({...x,id:x.id||`custom-${i+1}`,custom:true}))];
-  return combined.filter(item=>!removedSet.has(item.name)).map((item, index)=>{
-    const o=saved[item.name] || {};
-    return {...item, id:o.id || item.id || `item-${index+1}`, description:o.description || item.description || defaultDescription(item), image:o.image || item.image || "", stock:Number.isFinite(Number(o.stock))?Number(o.stock):(Number.isFinite(Number(item.stock))?Number(item.stock):999), available:o.available!==false && item.available!==false, bestseller:o.bestseller===true || item.bestseller===true};
-  });
+
+  return liveCatalog;
+
 }
 
-function saveCart(){ localStorage.setItem("tdcCart", JSON.stringify(cart)); }
+
+/* =========================================================
+   CART STORAGE
+========================================================= */
+
+function saveCart(){
+
+  localStorage.setItem(
+    "tdcCart",
+    JSON.stringify(cart)
+  );
+
+}
+
+
+/* =========================================================
+   CATEGORY TABS
+========================================================= */
 
 function renderCategories(){
-  const cats = ["All", ...new Set(loadCatalog().map(x=>x.category))];
-  $("#categoryTabs").innerHTML = cats.map(c =>
-    `<button class="category-tab ${c===activeCategory?"active":""}" data-cat="${c}">${c}</button>`
-  ).join("");
-  $$(".category-tab").forEach(btn => btn.addEventListener("click", () => {
-    activeCategory = btn.dataset.cat;
-    renderCategories();
-    renderMenu();
-  }));
+
+  const categoryTabs =
+    $("#categoryTabs");
+
+
+  if(!categoryTabs){
+
+    return;
+
+  }
+
+
+  const cats = [
+
+    "All",
+
+    ...new Set(
+      loadCatalog()
+        .map(item => item.category)
+        .filter(Boolean)
+    )
+
+  ];
+
+
+  if(
+    activeCategory !== "All" &&
+    !cats.includes(activeCategory)
+  ){
+
+    activeCategory = "All";
+
+  }
+
+
+  categoryTabs.innerHTML =
+    cats
+      .map(category =>
+
+        `<button
+          class="category-tab ${category === activeCategory ? "active" : ""}"
+          data-cat="${encodeURIComponent(category)}"
+        >
+          ${category}
+        </button>`
+
+      )
+      .join("");
+
+
+  $$(".category-tab")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          activeCategory =
+            decodeURIComponent(
+              button.dataset.cat
+            );
+
+          renderCategories();
+
+          renderMenu();
+
+        }
+      );
+
+    });
+
 }
+
+
+/* =========================================================
+   MENU RENDER
+========================================================= */
 
 function renderMenu(){
-  const q = $("#menuSearch").value.trim().toLowerCase();
-  const filtered = loadCatalog().filter(x =>
-    (activeCategory==="All" || x.category===activeCategory) &&
-    (!q || `${x.name} ${x.category} ${x.subcategory||""}`.toLowerCase().includes(q))
-  );
+
+  const menuGrid =
+    $("#menuGrid");
+
+
+  if(!menuGrid){
+
+    return;
+
+  }
+
+
+  const searchInput =
+    $("#menuSearch");
+
+
+  const query =
+    searchInput
+      ? searchInput.value
+          .trim()
+          .toLowerCase()
+      : "";
+
+
+  const filtered =
+    loadCatalog()
+      .filter(item =>
+
+        (
+          activeCategory === "All" ||
+          item.category === activeCategory
+        )
+
+        &&
+
+        (
+          !query ||
+
+          `${item.name}
+           ${item.category}
+           ${item.subcategory || ""}`
+
+            .toLowerCase()
+
+            .includes(query)
+        )
+
+      );
+
 
   if(!filtered.length){
-    $("#menuGrid").innerHTML = `<div class="empty-cart">No dishes match your search.</div>`;
+
+    menuGrid.innerHTML =
+
+      `<div class="empty-cart">
+        No dishes match your search.
+      </div>`;
+
     return;
+
   }
 
-  const grouped = filtered.reduce((groups, item) => {
-    if(!groups[item.category]) groups[item.category] = [];
-    groups[item.category].push(item);
-    return groups;
-  }, {});
 
-  $("#menuGrid").innerHTML = Object.entries(grouped).map(([category, items]) => `
-    <section class="menu-category-section">
-      <div class="menu-category-heading">
-        <div>
-          <span class="category-line"></span>
-          <h3>${category}</h3>
-        </div>
-        <span class="category-count">${items.length} item${items.length===1?"":"s"}</span>
-      </div>
+  const grouped =
+    filtered.reduce(
+      (groups, item) => {
 
-      <div class="category-items-grid">
-        ${items.map(x => `
-          <article class="menu-card food-card ${!x.available || x.stock<=0 ? "sold-out" : ""}">
-            <div class="food-copy">
-              <div class="menu-card-top">
-                <div>
-                  <div class="food-tags">${x.bestseller ? '<span class="bestseller-tag">★ Bestseller</span>' : ''}${x.subcategory ? `<span class="menu-meta">${x.subcategory}</span>` : ""}</div>
-                  <h3>${x.name}</h3>
-                  <p class="food-description">${x.description}</p>
-                </div>
-              </div>
-              <div class="menu-card-bottom">
-                <span class="price">${money(x.price)}</span>
-                <button class="add-btn" data-name="${encodeURIComponent(x.name)}" ${!x.available || x.stock<=0 ? "disabled" : ""}>${!x.available || x.stock<=0 ? "SOLD OUT" : "ADD +"}</button>
-              </div>
+        if(!groups[item.category]){
+
+          groups[item.category] = [];
+
+        }
+
+        groups[item.category]
+          .push(item);
+
+        return groups;
+
+      },
+      {}
+    );
+
+
+  menuGrid.innerHTML =
+
+    Object.entries(grouped)
+
+      .map(
+        ([category, items]) => `
+
+        <section class="menu-category-section">
+
+          <div class="menu-category-heading">
+
+            <div>
+
+              <span class="category-line"></span>
+
+              <h3>
+                ${category}
+              </h3>
+
             </div>
-            <div class="food-image-wrap">${x.image ? `<img src="${x.image}" alt="${x.name}" loading="lazy">` : `<div class="food-image-placeholder"><span>${CATEGORY_IMAGE[x.category] || "🍽️"}</span><small>Add photo in Admin</small></div>`}</div>
-          </article>
-        `).join("")}
-      </div>
-    </section>
-  `).join("");
 
-  $$(".add-btn").forEach(btn =>
-    btn.addEventListener("click", () =>
-      addItem(decodeURIComponent(btn.dataset.name))
-    )
-  );
+
+            <span class="category-count">
+
+              ${items.length}
+
+              item${items.length === 1 ? "" : "s"}
+
+            </span>
+
+          </div>
+
+
+          <div class="category-items-grid">
+
+            ${items.map(item => {
+
+              const unavailable =
+                !item.available ||
+                item.stock <= 0;
+
+
+              const imageHTML =
+                item.image
+
+                ? `
+
+                  <img
+                    src="${item.image}"
+                    alt="${item.name}"
+                    loading="lazy"
+                    referrerpolicy="no-referrer"
+                    onerror="
+                      this.style.display='none';
+                      this.nextElementSibling.style.display='flex';
+                    "
+                  >
+
+                  <div
+                    class="food-image-placeholder"
+                    style="display:none"
+                  >
+
+                    <span>
+                      ${CATEGORY_IMAGE[item.category] || "🍽️"}
+                    </span>
+
+                    <small>
+                      Photo unavailable
+                    </small>
+
+                  </div>
+
+                `
+
+                : `
+
+                  <div class="food-image-placeholder">
+
+                    <span>
+                      ${CATEGORY_IMAGE[item.category] || "🍽️"}
+                    </span>
+
+                    <small>
+                      Photo coming soon
+                    </small>
+
+                  </div>
+
+                `;
+
+
+              return `
+
+                <article
+                  class="
+                    menu-card
+                    food-card
+                    ${unavailable ? "sold-out" : ""}
+                  "
+                >
+
+                  <div class="food-copy">
+
+                    <div class="menu-card-top">
+
+                      <div>
+
+                        <div class="food-tags">
+
+                          ${
+                            item.bestseller
+
+                            ? `<span class="bestseller-tag">
+                                ★ Bestseller
+                               </span>`
+
+                            : ""
+                          }
+
+
+                          ${
+                            item.subcategory
+
+                            ? `<span class="menu-meta">
+                                ${item.subcategory}
+                               </span>`
+
+                            : ""
+                          }
+
+                        </div>
+
+
+                        <h3>
+                          ${item.name}
+                        </h3>
+
+
+                        <p class="food-description">
+                          ${item.description}
+                        </p>
+
+                      </div>
+
+                    </div>
+
+
+                    <div class="menu-card-bottom">
+
+                      <span class="price">
+                        ${money(item.price)}
+                      </span>
+
+
+                      <button
+                        class="add-btn"
+                        data-name="${encodeURIComponent(item.name)}"
+                        ${unavailable ? "disabled" : ""}
+                      >
+
+                        ${
+                          unavailable
+                            ? "SOLD OUT"
+                            : "ADD +"
+                        }
+
+                      </button>
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="food-image-wrap">
+
+                    ${imageHTML}
+
+                  </div>
+
+                </article>
+
+              `;
+
+            }).join("")}
+
+          </div>
+
+        </section>
+
+      `)
+
+      .join("");
+
+
+  $$(".add-btn")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          addItem(
+            decodeURIComponent(
+              button.dataset.name
+            )
+          );
+
+        }
+      );
+
+    });
+
 }
+
+
+/* =========================================================
+   ADD ITEM
+========================================================= */
 
 function addItem(name){
-  const product = loadCatalog().find(x=>x.name===name);
-  if(!product || !product.available || product.stock<=0){ alert("This item is currently unavailable."); return; }
-  const existing = cart.find(x=>x.name===name);
-  existing ? existing.qty++ : cart.push({...product, qty:1});
-  saveCart(); renderCart();
+
+  const product =
+    loadCatalog()
+      .find(
+        item =>
+          item.name === name
+      );
+
+
+  if(
+    !product ||
+    !product.available ||
+    product.stock <= 0
+  ){
+
+    alert(
+      "This item is currently unavailable."
+    );
+
+    return;
+
+  }
+
+
+  const existing =
+    cart.find(
+      item =>
+        item.name === name
+    );
+
+
+  if(existing){
+
+    existing.qty++;
+
+  } else {
+
+    cart.push({
+
+      ...product,
+
+      qty: 1
+
+    });
+
+  }
+
+
+  saveCart();
+
+  renderCart();
 
 }
+
+
+/* =========================================================
+   CHANGE QUANTITY
+========================================================= */
 
 function changeQty(name, delta){
-  const line = cart.find(x=>x.name===name);
-  if(!line) return;
+
+  const line =
+    cart.find(
+      item =>
+        item.name === name
+    );
+
+
+  if(!line){
+
+    return;
+
+  }
+
+
   line.qty += delta;
-  if(line.qty<=0) cart = cart.filter(x=>x.name!==name);
-  saveCart(); renderCart();
+
+
+  if(line.qty <= 0){
+
+    cart =
+      cart.filter(
+        item =>
+          item.name !== name
+      );
+
+  }
+
+
+  saveCart();
+
+  renderCart();
+
 }
+
+
+/* =========================================================
+   REMOVE ITEM
+========================================================= */
 
 function removeItem(name){
-  cart = cart.filter(x=>x.name!==name);
-  saveCart(); renderCart();
+
+  cart =
+    cart.filter(
+      item =>
+        item.name !== name
+    );
+
+
+  saveCart();
+
+  renderCart();
+
 }
+
+
+/* =========================================================
+   TOTALS
+========================================================= */
 
 function totals(){
-  const subtotal = cart.reduce((s,x)=>s+(x.price*x.qty),0);
-  const platformFee = cart.length ? Math.round(subtotal * 0.03) : 0;
-  const handlingFee = cart.length ? (orderType === "Delivery" ? 40 : 15) : 0;
+
+  const subtotal =
+    cart.reduce(
+      (sum, item) =>
+        sum +
+        (
+          Number(item.price) *
+          Number(item.qty)
+        ),
+      0
+    );
+
+
+  const platformFee =
+    cart.length
+      ? Math.round(
+          subtotal * 0.03
+        )
+      : 0;
+
+
+  const handlingFee =
+    cart.length
+
+      ? (
+          orderType === "Delivery"
+            ? 40
+            : 15
+        )
+
+      : 0;
+
+
   return {
-    count: cart.reduce((s,x)=>s+x.qty,0),
+
+    count:
+      cart.reduce(
+        (sum, item) =>
+          sum + item.qty,
+        0
+      ),
+
     subtotal,
+
     platformFee,
+
     handlingFee,
-    total: subtotal + platformFee + handlingFee
+
+    total:
+      subtotal +
+      platformFee +
+      handlingFee
+
   };
+
 }
+
+
+/* =========================================================
+   RENDER CART
+========================================================= */
 
 function renderCart(){
-  const {count,subtotal,platformFee,handlingFee,total} = totals();
 
-  const headerCartCount = $("#headerCartCount");
-  if(headerCartCount) headerCartCount.textContent = count;
+  const {
 
-  const mobileCartCount = $("#mobileCartCount");
-  if(mobileCartCount) mobileCartCount.textContent = `${count} item${count===1?"":"s"}`;
+    count,
 
-  const mobileCartTotal = $("#mobileCartTotal");
-  if(mobileCartTotal) mobileCartTotal.textContent = money(total);
+    subtotal,
 
-  const cartSubtotal = $("#cartSubtotal");
-  if(cartSubtotal) cartSubtotal.textContent = money(subtotal);
+    platformFee,
 
-  const cartPlatformFee = $("#cartPlatformFee");
-  if(cartPlatformFee) cartPlatformFee.textContent = money(platformFee);
+    handlingFee,
 
-  const cartFeeLabel = $("#cartFeeLabel");
-  if(cartFeeLabel) cartFeeLabel.textContent = orderType === "Delivery" ? "Delivery & Handling" : "Packing & Disposables";
+    total
 
-  const cartHandlingFee = $("#cartHandlingFee");
-  if(cartHandlingFee) cartHandlingFee.textContent = money(handlingFee);
+  } = totals();
 
-  const cartGrandTotal = $("#cartGrandTotal");
-  if(cartGrandTotal) cartGrandTotal.textContent = money(total);
 
-  const mobileCartBar = $("#mobileCartBar");
-  if(mobileCartBar) mobileCartBar.classList.toggle("visible", count>0);
+  const headerCartCount =
+    $("#headerCartCount");
 
-  const cartItems = $("#cartItems");
-  if(cartItems){
-    cartItems.innerHTML = cart.length ? cart.map(x => `
-      <div class="cart-line">
-        <div>
-          <h4>${x.name}</h4>
-          <small>${money(x.price)} each</small>
-          <div class="qty">
-            <button data-action="minus" data-name="${encodeURIComponent(x.name)}">−</button>
-            <strong>${x.qty}</strong>
-            <button data-action="plus" data-name="${encodeURIComponent(x.name)}">+</button>
-          </div>
-          <button class="remove-btn" data-action="remove" data-name="${encodeURIComponent(x.name)}">Remove</button>
-        </div>
-        <strong>${money(x.price*x.qty)}</strong>
-      </div>`).join("") : `<div class="empty-cart">Your cart is empty.<br>Add something delicious from the menu.</div>`;
+  if(headerCartCount){
 
-    cartItems.querySelectorAll("[data-action]").forEach(btn => btn.addEventListener("click", ()=>{
-      const name = decodeURIComponent(btn.dataset.name);
-      if(btn.dataset.action==="plus") changeQty(name,1);
-      if(btn.dataset.action==="minus") changeQty(name,-1);
-      if(btn.dataset.action==="remove") removeItem(name);
-    }));
+    headerCartCount.textContent =
+      count;
+
   }
+
+
+  const mobileCartCount =
+    $("#mobileCartCount");
+
+  if(mobileCartCount){
+
+    mobileCartCount.textContent =
+
+      `${count} item${count === 1 ? "" : "s"}`;
+
+  }
+
+
+  const mobileCartTotal =
+    $("#mobileCartTotal");
+
+  if(mobileCartTotal){
+
+    mobileCartTotal.textContent =
+      money(total);
+
+  }
+
+
+  const cartSubtotal =
+    $("#cartSubtotal");
+
+  if(cartSubtotal){
+
+    cartSubtotal.textContent =
+      money(subtotal);
+
+  }
+
+
+  const cartPlatformFee =
+    $("#cartPlatformFee");
+
+  if(cartPlatformFee){
+
+    cartPlatformFee.textContent =
+      money(platformFee);
+
+  }
+
+
+  const cartFeeLabel =
+    $("#cartFeeLabel");
+
+  if(cartFeeLabel){
+
+    cartFeeLabel.textContent =
+
+      orderType === "Delivery"
+
+        ? "Delivery & Handling"
+
+        : "Packing & Disposables";
+
+  }
+
+
+  const cartHandlingFee =
+    $("#cartHandlingFee");
+
+  if(cartHandlingFee){
+
+    cartHandlingFee.textContent =
+      money(handlingFee);
+
+  }
+
+
+  const cartGrandTotal =
+    $("#cartGrandTotal");
+
+  if(cartGrandTotal){
+
+    cartGrandTotal.textContent =
+      money(total);
+
+  }
+
+
+  const mobileCartBar =
+    $("#mobileCartBar");
+
+  if(mobileCartBar){
+
+    mobileCartBar.classList.toggle(
+      "visible",
+      count > 0
+    );
+
+  }
+
+
+  const cartItems =
+    $("#cartItems");
+
+
+  if(cartItems){
+
+    cartItems.innerHTML =
+
+      cart.length
+
+      ? cart.map(
+          item => `
+
+          <div class="cart-line">
+
+            <div>
+
+              <h4>
+                ${item.name}
+              </h4>
+
+              <small>
+                ${money(item.price)} each
+              </small>
+
+
+              <div class="qty">
+
+                <button
+                  data-action="minus"
+                  data-name="${encodeURIComponent(item.name)}"
+                >
+                  −
+                </button>
+
+                <strong>
+                  ${item.qty}
+                </strong>
+
+                <button
+                  data-action="plus"
+                  data-name="${encodeURIComponent(item.name)}"
+                >
+                  +
+                </button>
+
+              </div>
+
+
+              <button
+                class="remove-btn"
+                data-action="remove"
+                data-name="${encodeURIComponent(item.name)}"
+              >
+                Remove
+              </button>
+
+            </div>
+
+
+            <strong>
+
+              ${money(
+                item.price *
+                item.qty
+              )}
+
+            </strong>
+
+          </div>
+
+        `).join("")
+
+      : `
+
+        <div class="empty-cart">
+
+          Your cart is empty.
+
+          <br>
+
+          Add something delicious
+          from the menu.
+
+        </div>
+
+      `;
+
+
+    cartItems
+      .querySelectorAll(
+        "[data-action]"
+      )
+      .forEach(
+        button => {
+
+          button.addEventListener(
+            "click",
+            () => {
+
+              const name =
+                decodeURIComponent(
+                  button.dataset.name
+                );
+
+
+              if(
+                button.dataset.action ===
+                "plus"
+              ){
+
+                changeQty(
+                  name,
+                  1
+                );
+
+              }
+
+
+              if(
+                button.dataset.action ===
+                "minus"
+              ){
+
+                changeQty(
+                  name,
+                  -1
+                );
+
+              }
+
+
+              if(
+                button.dataset.action ===
+                "remove"
+              ){
+
+                removeItem(name);
+
+              }
+
+            }
+          );
+
+        }
+      );
+
+  }
+
 }
+
+
+/* =========================================================
+   CART NAVIGATION
+========================================================= */
 
 function openCart(){
-  window.location.href = "cart.html";
+
+  window.location.href =
+    "cart.html";
+
 }
+
+
 function closeCart(){
-  const drawer = $("#cartDrawer");
-  const overlay = $("#overlay");
+
+  const drawer =
+    $("#cartDrawer");
+
+  const overlay =
+    $("#overlay");
+
+
   if(drawer){
-    drawer.classList.remove("open");
-    drawer.setAttribute("aria-hidden","true");
+
+    drawer.classList.remove(
+      "open"
+    );
+
+    drawer.setAttribute(
+      "aria-hidden",
+      "true"
+    );
+
   }
-  if(overlay) overlay.classList.remove("show");
-  document.body.style.overflow = "";
+
+
+  if(overlay){
+
+    overlay.classList.remove(
+      "show"
+    );
+
+  }
+
+
+  document.body.style.overflow =
+    "";
+
 }
+
+
+/* =========================================================
+   DATE SETUP
+========================================================= */
 
 function setupDate(){
-  const d = new Date();
-  const local = new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().split("T")[0];
-  $("#scheduleDate").min = local;
+
+  const scheduleDate =
+    $("#scheduleDate");
+
+
+  if(!scheduleDate){
+
+    return;
+
+  }
+
+
+  const date =
+    new Date();
+
+
+  const local =
+    new Date(
+
+      date.getTime() -
+
+      date.getTimezoneOffset() *
+      60000
+
+    )
+
+      .toISOString()
+
+      .split("T")[0];
+
+
+  scheduleDate.min =
+    local;
+
 }
 
+
+/* =========================================================
+   BUILD ORDER
+========================================================= */
+
 function buildOrder(){
-  if(!cart.length) return {error:"Please add at least one item to your cart."};
-  const name = $("#customerName").value.trim();
-  const phone = $("#customerPhone").value.trim();
-  const address = $("#deliveryAddress").value.trim();
-  const landmark = $("#deliveryLandmark") ? $("#deliveryLandmark").value.trim() : "";
-  const note = $("#orderNote").value.trim();
-  if(!name) return {error:"Please enter your name."};
-  if(orderType==="Delivery" && !address) return {error:"Please enter your full delivery address."};
 
-  const scheduleMode = $("#scheduleMode").value;
-  const date = $("#scheduleDate").value;
-  const time = $("#scheduleTime").value;
-  if(scheduleMode==="later" && (!date || !time)) return {error:"Please select both date and time for your scheduled order."};
+  if(!cart.length){
 
-  const {subtotal,platformFee,handlingFee,total} = totals();
-  const items = cart.map((x,i)=>`${i+1}. ${x.name} × ${x.qty} — ₹${x.price*x.qty}`).join("\n");
-  const scheduleText = scheduleMode==="asap" ? "As soon as possible" : `${date} at ${time}`;
+    return {
 
-  const msg = `Hello The Daddy's Cafe! I would like to place an order.
+      error:
+        "Please add at least one item to your cart."
+
+    };
+
+  }
+
+
+  const customerName =
+    $("#customerName");
+
+
+  const customerPhone =
+    $("#customerPhone");
+
+
+  const deliveryAddress =
+    $("#deliveryAddress");
+
+
+  const deliveryLandmark =
+    $("#deliveryLandmark");
+
+
+  const orderNote =
+    $("#orderNote");
+
+
+  const name =
+    customerName
+      ? customerName.value.trim()
+      : "";
+
+
+  const phone =
+    customerPhone
+      ? customerPhone.value.trim()
+      : "";
+
+
+  const address =
+    deliveryAddress
+      ? deliveryAddress.value.trim()
+      : "";
+
+
+  const landmark =
+    deliveryLandmark
+      ? deliveryLandmark.value.trim()
+      : "";
+
+
+  const note =
+    orderNote
+      ? orderNote.value.trim()
+      : "";
+
+
+  if(!name){
+
+    return {
+
+      error:
+        "Please enter your name."
+
+    };
+
+  }
+
+
+  if(
+    orderType === "Delivery" &&
+    !address
+  ){
+
+    return {
+
+      error:
+        "Please enter your full delivery address."
+
+    };
+
+  }
+
+
+  const scheduleModeElement =
+    $("#scheduleMode");
+
+
+  const scheduleDateElement =
+    $("#scheduleDate");
+
+
+  const scheduleTimeElement =
+    $("#scheduleTime");
+
+
+  const scheduleMode =
+    scheduleModeElement
+      ? scheduleModeElement.value
+      : "asap";
+
+
+  const date =
+    scheduleDateElement
+      ? scheduleDateElement.value
+      : "";
+
+
+  const time =
+    scheduleTimeElement
+      ? scheduleTimeElement.value
+      : "";
+
+
+  if(
+    scheduleMode === "later" &&
+    (!date || !time)
+  ){
+
+    return {
+
+      error:
+        "Please select both date and time for your scheduled order."
+
+    };
+
+  }
+
+
+  const {
+
+    subtotal,
+
+    platformFee,
+
+    handlingFee,
+
+    total
+
+  } = totals();
+
+
+  const items =
+    cart
+      .map(
+        (item, index) =>
+
+          `${index + 1}. ${item.name} × ${item.qty} — ₹${item.price * item.qty}`
+
+      )
+
+      .join("\n");
+
+
+  const scheduleText =
+
+    scheduleMode === "asap"
+
+      ? "As soon as possible"
+
+      : `${date} at ${time}`;
+
+
+  const message =
+
+`Hello The Daddy's Cafe! I would like to place an order.
 
 *Customer:* ${name}
 *Phone:* ${phone || "Not provided"}
 *Order Type:* ${orderType}
-*Preferred Time:* ${scheduleText}${orderType==="Delivery" ? `\n*Delivery Address:* ${address}${landmark ? `\n*Landmark:* ${landmark}` : ""}` : ""}
+*Preferred Time:* ${scheduleText}${orderType === "Delivery" ? `\n*Delivery Address:* ${address}${landmark ? `\n*Landmark:* ${landmark}` : ""}` : ""}
 
 *ORDER ITEMS*
 ${items}
@@ -350,63 +1602,330 @@ Prepaid order. Please confirm availability and order acceptance.
 
 Thank you.`;
 
+
   return {
-    message: msg,
+
+    message,
+
     order: {
-      customerName: name,
-      customerPhone: phone || "Not provided",
+
+      customerName:
+        name,
+
+      customerPhone:
+        phone || "Not provided",
+
       orderType,
+
       scheduleText,
-      deliveryAddress: orderType === "Delivery" ? address : "",
-      landmark: orderType === "Delivery" ? landmark : "",
+
+      deliveryAddress:
+        orderType === "Delivery"
+          ? address
+          : "",
+
+      landmark:
+        orderType === "Delivery"
+          ? landmark
+          : "",
+
       note,
-      items: cart.map(x => ({name:x.name, price:x.price, qty:x.qty, lineTotal:x.price*x.qty})),
+
+      items:
+        cart.map(
+          item => ({
+
+            name:
+              item.name,
+
+            price:
+              item.price,
+
+            qty:
+              item.qty,
+
+            lineTotal:
+              item.price *
+              item.qty
+
+          })
+        ),
+
       subtotal,
+
       platformFee,
+
       handlingFee,
-      handlingLabel: orderType === "Delivery" ? "Delivery & Handling" : "Packing & Disposables",
+
+      handlingLabel:
+        orderType === "Delivery"
+
+          ? "Delivery & Handling"
+
+          : "Packing & Disposables",
+
       total,
-      createdAt: new Date().toISOString()
+
+      createdAt:
+        new Date().toISOString()
+
     }
+
   };
+
 }
 
-if($("#whatsappCheckoutBtn")) $("#whatsappCheckoutBtn").addEventListener("click", ()=>{
-  if(!cart.length){ alert("Please add at least one item to your cart."); return; }
-  window.location.href = "cart.html";
-});
 
-if($$(".toggle").length) $$(".toggle").forEach(btn=>btn.addEventListener("click",()=>{
-  $$(".toggle").forEach(x=>x.classList.remove("active"));
-  btn.classList.add("active");
-  orderType = btn.dataset.orderType;
-  $("#deliveryPanel").classList.toggle("hidden",orderType!=="Delivery");
-  renderCart();
-}));
+/* =========================================================
+   EVENT LISTENERS
+========================================================= */
 
-if($("#scheduleMode")) $("#scheduleMode").addEventListener("change",e=>{
-  $("#scheduleFields").classList.toggle("hidden",e.target.value!=="later");
-});
-if($("#menuSearch")) $("#menuSearch").addEventListener("input",renderMenu);
-if($("#headerCartBtn")) $("#headerCartBtn").addEventListener("click",()=>{ window.location.href="cart.html"; });
-if($("#mobileCartBar")) $("#mobileCartBar").addEventListener("click",()=>{ window.location.href="cart.html"; });
-if($("#closeCartBtn")) $("#closeCartBtn").addEventListener("click",closeCart);
-if($("#overlay")) $("#overlay").addEventListener("click",closeCart);
-document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeCart(); });
-if($("#year")) $("#year").textContent = new Date().getFullYear();
+if($("#whatsappCheckoutBtn")){
 
-try {
-  renderCategories();
-  renderMenu();
-} catch (error) {
-  console.error("Menu render error:", error);
-  if($("#menuGrid")) {
-    $("#menuGrid").innerHTML = '<div class="empty-cart">Menu could not load. Please refresh the page.</div>';
+  $("#whatsappCheckoutBtn")
+    .addEventListener(
+      "click",
+      () => {
+
+        if(!cart.length){
+
+          alert(
+            "Please add at least one item to your cart."
+          );
+
+          return;
+
+        }
+
+
+        window.location.href =
+          "cart.html";
+
+      }
+    );
+
+}
+
+
+if($$(".toggle").length){
+
+  $$(".toggle")
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            $$(".toggle")
+              .forEach(
+                item =>
+                  item.classList.remove(
+                    "active"
+                  )
+              );
+
+
+            button.classList.add(
+              "active"
+            );
+
+
+            orderType =
+              button.dataset.orderType;
+
+
+            const deliveryPanel =
+              $("#deliveryPanel");
+
+
+            if(deliveryPanel){
+
+              deliveryPanel
+                .classList
+                .toggle(
+
+                  "hidden",
+
+                  orderType !==
+                  "Delivery"
+
+                );
+
+            }
+
+
+            renderCart();
+
+          }
+        );
+
+      }
+    );
+
+}
+
+
+if($("#scheduleMode")){
+
+  $("#scheduleMode")
+    .addEventListener(
+      "change",
+      event => {
+
+        const fields =
+          $("#scheduleFields");
+
+
+        if(fields){
+
+          fields.classList.toggle(
+
+            "hidden",
+
+            event.target.value !==
+            "later"
+
+          );
+
+        }
+
+      }
+    );
+
+}
+
+
+if($("#menuSearch")){
+
+  $("#menuSearch")
+    .addEventListener(
+      "input",
+      renderMenu
+    );
+
+}
+
+
+if($("#headerCartBtn")){
+
+  $("#headerCartBtn")
+    .addEventListener(
+      "click",
+      () => {
+
+        window.location.href =
+          "cart.html";
+
+      }
+    );
+
+}
+
+
+if($("#mobileCartBar")){
+
+  $("#mobileCartBar")
+    .addEventListener(
+      "click",
+      () => {
+
+        window.location.href =
+          "cart.html";
+
+      }
+    );
+
+}
+
+
+if($("#closeCartBtn")){
+
+  $("#closeCartBtn")
+    .addEventListener(
+      "click",
+      closeCart
+    );
+
+}
+
+
+if($("#overlay")){
+
+  $("#overlay")
+    .addEventListener(
+      "click",
+      closeCart
+    );
+
+}
+
+
+document.addEventListener(
+  "keydown",
+  event => {
+
+    if(event.key === "Escape"){
+
+      closeCart();
+
+    }
+
   }
+);
+
+
+if($("#year")){
+
+  $("#year").textContent =
+    new Date().getFullYear();
+
 }
 
-try {
-  renderCart();
-} catch (error) {
-  console.error("Cart badge render error:", error);
+
+/* =========================================================
+   START APPLICATION
+========================================================= */
+
+async function initializeStore(){
+
+  try {
+
+    renderCart();
+
+  } catch(error){
+
+    console.error(
+      "Cart badge render error:",
+      error
+    );
+
+  }
+
+
+  try {
+
+    await loadMenuFromSupabase();
+
+  } catch(error){
+
+    console.error(
+      "Store initialization failed:",
+      error
+    );
+
+
+    liveCatalog =
+      createFallbackCatalog();
+
+
+    renderCategories();
+
+    renderMenu();
+
+  }
+
 }
+
+
+initializeStore();
