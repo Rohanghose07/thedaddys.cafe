@@ -1,21 +1,50 @@
 "use strict";
 
 /* =========================================================
-   SUPABASE ADMIN AUTH
+   SUPABASE
 ========================================================= */
 
 const supabaseClient = window.supabaseClient;
 
-const adminLoginGate = document.getElementById("adminLoginGate");
-const adminLoginForm = document.getElementById("adminLoginForm");
-const adminEmail = document.getElementById("adminEmail");
-const adminPass = document.getElementById("adminPass");
-const adminLoginError = document.getElementById("adminLoginError");
-const adminLogoutBtn = document.getElementById("adminLogoutBtn");
+if (!supabaseClient) {
+  console.error(
+    "Supabase client is missing. Check supabase-config.js."
+  );
+}
 
-const dashboardHeader = document.querySelector("header");
-const dashboardMain = document.querySelector("main");
 
+/* =========================================================
+   ADMIN AUTH ELEMENTS
+========================================================= */
+
+const adminLoginGate =
+  document.getElementById("adminLoginGate");
+
+const adminLoginForm =
+  document.getElementById("adminLoginForm");
+
+const adminEmail =
+  document.getElementById("adminEmail");
+
+const adminPass =
+  document.getElementById("adminPass");
+
+const adminLoginError =
+  document.getElementById("adminLoginError");
+
+const adminLogoutBtn =
+  document.getElementById("adminLogoutBtn");
+
+const dashboardHeader =
+  document.querySelector("header");
+
+const dashboardMain =
+  document.querySelector("main");
+
+
+/* =========================================================
+   ADMIN UI
+========================================================= */
 
 function setAdminUi(loggedIn) {
 
@@ -43,7 +72,7 @@ function setAdminUi(loggedIn) {
 
 
 /* =========================================================
-   VERIFY ADMIN UUID
+   VERIFY ADMIN
 ========================================================= */
 
 async function verifyAdmin(userId) {
@@ -65,7 +94,6 @@ async function verifyAdmin(userId) {
       );
 
       return false;
-
     }
 
     return Boolean(data);
@@ -73,22 +101,28 @@ async function verifyAdmin(userId) {
   } catch (error) {
 
     console.error(
-      "Admin verification exception:",
+      "Admin verification error:",
       error
     );
 
     return false;
-
   }
 
 }
 
 
 /* =========================================================
-   CHECK CURRENT SESSION
+   CHECK ADMIN SESSION
 ========================================================= */
 
 async function checkAdminSession() {
+
+  if (!supabaseClient) {
+
+    setAdminUi(false);
+
+    return;
+  }
 
   try {
 
@@ -110,24 +144,19 @@ async function checkAdminSession() {
       setAdminUi(false);
 
       return;
-
     }
-
 
     if (!session) {
 
       setAdminUi(false);
 
       return;
-
     }
-
 
     const isAdmin =
       await verifyAdmin(
         session.user.id
       );
-
 
     if (!isAdmin) {
 
@@ -138,29 +167,25 @@ async function checkAdminSession() {
       if (adminLoginError) {
 
         adminLoginError.textContent =
-          "This account is not authorised to access the admin dashboard.";
+          "This account is not authorised as an admin.";
 
       }
 
       setAdminUi(false);
 
       return;
-
     }
 
-
     setAdminUi(true);
-
 
   } catch (error) {
 
     console.error(
-      "Session verification error:",
+      "Session error:",
       error
     );
 
     setAdminUi(false);
-
   }
 
 }
@@ -178,56 +203,38 @@ if (adminLoginForm) {
 
       event.preventDefault();
 
-
       const email =
-        adminEmail
-          ? adminEmail.value.trim()
-          : "";
+        adminEmail?.value
+          .trim() || "";
 
       const password =
-        adminPass
-          ? adminPass.value
-          : "";
-
+        adminPass?.value || "";
 
       if (!email || !password) {
 
-        if (adminLoginError) {
-
-          adminLoginError.textContent =
-            "Please enter your email and password.";
-
-        }
+        adminLoginError.textContent =
+          "Please enter your email and password.";
 
         return;
-
       }
-
 
       const loginButton =
-        adminLoginForm.querySelector(
-          'button[type="submit"]'
+        document.getElementById(
+          "adminLoginBtn"
         );
 
+      try {
 
-      if (loginButton) {
+        if (loginButton) {
 
-        loginButton.disabled = true;
-        loginButton.textContent =
-          "SIGNING IN...";
+          loginButton.disabled = true;
 
-      }
-
-
-      if (adminLoginError) {
+          loginButton.textContent =
+            "SIGNING IN...";
+        }
 
         adminLoginError.textContent =
           "Signing in...";
-
-      }
-
-
-      try {
 
         const {
           data,
@@ -236,46 +243,30 @@ if (adminLoginForm) {
           await supabaseClient
             .auth
             .signInWithPassword({
-
               email,
               password
-
             });
-
 
         if (error) {
 
-          if (adminLoginError) {
-
-            adminLoginError.textContent =
-              error.message;
-
-          }
+          adminLoginError.textContent =
+            error.message;
 
           return;
-
         }
-
 
         if (!data.user) {
 
-          if (adminLoginError) {
-
-            adminLoginError.textContent =
-              "Login failed.";
-
-          }
+          adminLoginError.textContent =
+            "Login failed.";
 
           return;
-
         }
-
 
         const isAdmin =
           await verifyAdmin(
             data.user.id
           );
-
 
         if (!isAdmin) {
 
@@ -283,39 +274,22 @@ if (adminLoginForm) {
             .auth
             .signOut();
 
-
-          if (adminLoginError) {
-
-            adminLoginError.textContent =
-              "This account is not authorised as an admin.";
-
-          }
-
+          adminLoginError.textContent =
+            "This account is not authorised to access the admin dashboard.";
 
           setAdminUi(false);
 
           return;
-
         }
 
-
-        if (adminLoginError) {
-
-          adminLoginError.textContent =
-            "";
-
-        }
-
+        adminLoginError.textContent =
+          "";
 
         if (adminPass) {
-
           adminPass.value = "";
-
         }
 
-
         setAdminUi(true);
-
 
       } catch (error) {
 
@@ -324,23 +298,17 @@ if (adminLoginForm) {
           error
         );
 
-
-        if (adminLoginError) {
-
-          adminLoginError.textContent =
-            "Unable to sign in. Please try again.";
-
-        }
-
+        adminLoginError.textContent =
+          "Unable to sign in. Please try again.";
 
       } finally {
 
         if (loginButton) {
 
           loginButton.disabled = false;
+
           loginButton.textContent =
             "LOGIN";
-
         }
 
       }
@@ -352,7 +320,7 @@ if (adminLoginForm) {
 
 
 /* =========================================================
-   ADMIN LOGOUT
+   LOGOUT
 ========================================================= */
 
 if (adminLogoutBtn) {
@@ -370,27 +338,19 @@ if (adminLogoutBtn) {
       } catch (error) {
 
         console.error(
-          "Logout error:",
+          "Logout failed:",
           error
         );
 
       }
 
-
       if (adminPass) {
-
         adminPass.value = "";
-
       }
-
 
       if (adminLoginError) {
-
-        adminLoginError.textContent =
-          "";
-
+        adminLoginError.textContent = "";
       }
-
 
       setAdminUi(false);
 
@@ -401,29 +361,33 @@ if (adminLogoutBtn) {
 
 
 /* =========================================================
-   OPTIONAL AUTH STATE LISTENER
+   AUTH STATE
 ========================================================= */
 
-supabaseClient
-  .auth
-  .onAuthStateChange(
-    async (event, session) => {
+if (supabaseClient) {
 
-      if (
-        event === "SIGNED_OUT" ||
-        !session
-      ) {
+  supabaseClient
+    .auth
+    .onAuthStateChange(
+      (event, session) => {
 
-        setAdminUi(false);
+        if (
+          event === "SIGNED_OUT" ||
+          !session
+        ) {
+
+          setAdminUi(false);
+
+        }
 
       }
+    );
 
-    }
-  );
+}
 
 
 /* =========================================================
-   EXISTING MENU DATA
+   BASE MENU
 ========================================================= */
 
 const BASE_MENU = [
@@ -469,7 +433,6 @@ const BASE_MENU = [
     "Chilli Baby Corn",
     120
   ],
-
 
   [
     "Fried Rice",
@@ -531,7 +494,6 @@ const BASE_MENU = [
     110
   ],
 
-
   [
     "Hakka Noodles",
     "Veg Hakka Noodles",
@@ -592,7 +554,6 @@ const BASE_MENU = [
     110
   ],
 
-
   [
     "Kolkata Rolls",
     "Paneer Roll",
@@ -616,7 +577,6 @@ const BASE_MENU = [
     "Egg Chicken Roll",
     120
   ],
-
 
   [
     "Grilled Sandwiches",
@@ -647,7 +607,6 @@ const BASE_MENU = [
     "Chicken & Corn Sandwich",
     150
   ],
-
 
   [
     "Momos",
@@ -685,7 +644,6 @@ const BASE_MENU = [
     110
   ],
 
-
   [
     "Maggi",
     "Fried Masala Maggi",
@@ -697,7 +655,6 @@ const BASE_MENU = [
     "Cheesy Fried Masala Maggi",
     80
   ],
-
 
   [
     "Indian Breads",
@@ -733,14 +690,8 @@ const BASE_MENU = [
 
 
 /* =========================================================
-   HELPERS
+   LOCAL STORAGE KEYS
 ========================================================= */
-
-const money =
-  (n) =>
-    `₹${Number(n || 0)
-      .toLocaleString("en-IN")}`;
-
 
 const CUSTOM_KEY =
   "tdcCustomMenuItems";
@@ -752,7 +703,20 @@ const PROMO_KEY =
   "tdcPromos";
 
 
-function safeJson(key, fallback) {
+/* =========================================================
+   HELPERS
+========================================================= */
+
+const money =
+  (value) =>
+    `₹${Number(value || 0)
+      .toLocaleString("en-IN")}`;
+
+
+function safeJson(
+  key,
+  fallback
+) {
 
   try {
 
@@ -826,11 +790,40 @@ function saveRemovedItems(items) {
 
     REMOVED_KEY,
 
-    JSON.stringify(
-      [...new Set(items)]
-    )
+    JSON.stringify([
+      ...new Set(items)
+    ])
 
   );
+
+}
+
+
+function escapeAttr(value) {
+
+  return String(
+    value ?? ""
+  )
+
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+
+    .replace(
+      /</g,
+      "&lt;"
+    )
+
+    .replace(
+      />/g,
+      "&gt;"
+    );
 
 }
 
@@ -846,34 +839,345 @@ function allMenuItems() {
   return [
 
     ...BASE_MENU.map(
-      (x) => ({
-        ...x,
+      (item) => ({
+        ...item,
         custom: false
       })
     ),
 
     ...getCustomItems().map(
-      (x) => ({
-        ...x,
+      (item) => ({
+        ...item,
         custom: true
       })
     )
 
   ].filter(
-    (x) =>
-      !removed.has(x.name)
+    (item) =>
+      !removed.has(
+        item.name
+      )
   );
 
 }
 
 
-function escapeAttr(v) {
+/* =========================================================
+   IMAGE FILE PREVIEW
+========================================================= */
 
-  return String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+const newImageFile =
+  document.getElementById(
+    "newImageFile"
+  );
+
+const newImagePreview =
+  document.getElementById(
+    "newImagePreview"
+  );
+
+const newImagePreviewWrap =
+  document.getElementById(
+    "newImagePreviewWrap"
+  );
+
+const newImageUploadStatus =
+  document.getElementById(
+    "newImageUploadStatus"
+  );
+
+
+if (newImageFile) {
+
+  newImageFile.addEventListener(
+    "change",
+    function () {
+
+      const file =
+        this.files?.[0];
+
+      if (!file) {
+
+        if (newImagePreviewWrap) {
+          newImagePreviewWrap.style.display =
+            "none";
+        }
+
+        if (newImagePreview) {
+          newImagePreview.src = "";
+        }
+
+        return;
+      }
+
+
+      const allowedTypes = [
+
+        "image/jpeg",
+
+        "image/png",
+
+        "image/webp"
+
+      ];
+
+
+      if (
+        !allowedTypes.includes(
+          file.type
+        )
+      ) {
+
+        alert(
+          "Please upload a JPG, PNG or WebP image."
+        );
+
+        this.value = "";
+
+        return;
+      }
+
+
+      const maxFileSize =
+        6 * 1024 * 1024;
+
+
+      if (
+        file.size >
+        maxFileSize
+      ) {
+
+        alert(
+          "Image must be smaller than 6 MB."
+        );
+
+        this.value = "";
+
+        return;
+      }
+
+
+      const previewUrl =
+        URL.createObjectURL(
+          file
+        );
+
+
+      if (newImagePreview) {
+
+        newImagePreview.src =
+          previewUrl;
+
+      }
+
+
+      if (
+        newImagePreviewWrap
+      ) {
+
+        newImagePreviewWrap.style.display =
+          "block";
+
+      }
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   UPLOAD IMAGE TO SUPABASE
+========================================================= */
+
+async function uploadMenuImage(
+  file,
+  itemName
+) {
+
+  if (!file) {
+
+    return "";
+
+  }
+
+
+  if (!supabaseClient) {
+
+    throw new Error(
+      "Supabase connection is unavailable."
+    );
+
+  }
+
+
+  const allowedTypes = [
+
+    "image/jpeg",
+
+    "image/png",
+
+    "image/webp"
+
+  ];
+
+
+  if (
+    !allowedTypes.includes(
+      file.type
+    )
+  ) {
+
+    throw new Error(
+      "Only JPG, PNG and WebP images are allowed."
+    );
+
+  }
+
+
+  const maxFileSize =
+    6 * 1024 * 1024;
+
+
+  if (
+    file.size >
+    maxFileSize
+  ) {
+
+    throw new Error(
+      "Image must be smaller than 6 MB."
+    );
+
+  }
+
+
+  const rawExtension =
+    file.name
+      .split(".")
+      .pop()
+      .toLowerCase();
+
+
+  const allowedExtensions = [
+    "jpg",
+    "jpeg",
+    "png",
+    "webp"
+  ];
+
+
+  const extension =
+    allowedExtensions.includes(
+      rawExtension
+    )
+      ? rawExtension
+      : "jpg";
+
+
+  const safeItemName =
+    String(itemName)
+
+      .toLowerCase()
+
+      .trim()
+
+      .replace(
+        /[^a-z0-9]+/g,
+        "-"
+      )
+
+      .replace(
+        /^-+|-+$/g,
+        ""
+      ) ||
+
+    "menu-item";
+
+
+  const uniqueName =
+
+    `${safeItemName}-${Date.now()}.${extension}`;
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+
+      .storage
+
+      .from(
+        "menu-images"
+      )
+
+      .upload(
+
+        uniqueName,
+
+        file,
+
+        {
+
+          cacheControl:
+            "3600",
+
+          upsert:
+            false,
+
+          contentType:
+            file.type
+
+        }
+
+      );
+
+
+  if (error) {
+
+    console.error(
+      "Image upload error:",
+      error
+    );
+
+    throw new Error(
+      error.message ||
+      "Image upload failed."
+    );
+
+  }
+
+
+  const {
+    data: publicData
+  } =
+    supabaseClient
+
+      .storage
+
+      .from(
+        "menu-images"
+      )
+
+      .getPublicUrl(
+        data.path
+      );
+
+
+  if (
+    !publicData?.publicUrl
+  ) {
+
+    throw new Error(
+      "Could not generate the public image URL."
+    );
+
+  }
+
+
+  return (
+    publicData.publicUrl
+  );
 
 }
 
@@ -884,10 +1188,12 @@ function escapeAttr(v) {
 
 function renderStats() {
 
-  const statsBox =
-    document.querySelector("#stats");
+  const stats =
+    document.getElementById(
+      "stats"
+    );
 
-  if (!statsBox) return;
+  if (!stats) return;
 
 
   const orders =
@@ -896,8 +1202,8 @@ function renderStats() {
 
   const completed =
     orders.filter(
-      (x) =>
-        x.orderStatus !==
+      (order) =>
+        order.orderStatus !==
         "Cancelled"
     );
 
@@ -905,9 +1211,15 @@ function renderStats() {
   const sales =
     completed.reduce(
 
-      (sum, x) =>
-        sum +
-        Number(x.total || 0),
+      (
+        total,
+        order
+      ) =>
+
+        total +
+        Number(
+          order.total || 0
+        ),
 
       0
 
@@ -916,26 +1228,29 @@ function renderStats() {
 
   const average =
     completed.length
+
       ? Math.round(
           sales /
           completed.length
         )
+
       : 0;
 
 
-  const openOrders =
+  const open =
     orders.filter(
-      (x) =>
+      (order) =>
+
         ![
           "Completed",
           "Cancelled"
         ].includes(
-          x.orderStatus
+          order.orderStatus
         )
     ).length;
 
 
-  statsBox.innerHTML = `
+  stats.innerHTML = `
 
     <div class="stat">
 
@@ -983,7 +1298,7 @@ function renderStats() {
       </small>
 
       <strong>
-        ${openOrders}
+        ${open}
       </strong>
 
     </div>
@@ -999,40 +1314,37 @@ function renderStats() {
 
 function renderOrders() {
 
-  const filterBox =
-    document.querySelector(
-      "#orderFilter"
+  const list =
+    document.getElementById(
+      "ordersList"
     );
 
-  const ordersList =
-    document.querySelector(
-      "#ordersList"
-    );
-
-
-  if (!ordersList) return;
+  if (!list) return;
 
 
   const filter =
-    filterBox
-      ? filterBox.value
-      : "All";
+    document.getElementById(
+      "orderFilter"
+    )?.value || "All";
 
 
   const orders =
     getOrders().filter(
       (order) =>
+
         filter === "All" ||
-        order.orderStatus === filter
+
+        order.orderStatus ===
+        filter
     );
 
 
-  ordersList.innerHTML =
+  list.innerHTML =
+
     orders.length
 
-      ? orders
-          .map(
-            (order) => `
+      ? orders.map(
+          (order) => `
 
           <article class="order">
 
@@ -1041,36 +1353,48 @@ function renderOrders() {
               <div>
 
                 <strong>
+
                   ${
-                    order.invoiceNumber ||
-                    "Order"
+                    escapeAttr(
+                      order.invoiceNumber ||
+                      "Order"
+                    )
                   }
+
                 </strong>
 
                 <p>
+
                   ${
                     escapeAttr(
                       order.customerName ||
                       ""
                     )
                   }
+
                   •
+
                   ${
                     escapeAttr(
                       order.customerPhone ||
                       ""
                     )
                   }
+
                 </p>
 
               </div>
 
 
               <span class="badge">
+
                 ${
-                  order.orderStatus ||
-                  "Paid"
+                  escapeAttr(
+                    order.orderStatus ||
+                    "Paid"
+                  )
                 }
+
               </span>
 
             </div>
@@ -1080,10 +1404,13 @@ function renderOrders() {
 
               ${
                 (order.items || [])
+
                   .map(
                     (item) =>
-                      `${item.qty} × ${escapeAttr(item.name)}`
+
+                      `${Number(item.qty || 0)} × ${escapeAttr(item.name)}`
                   )
+
                   .join("<br>")
               }
 
@@ -1117,6 +1444,7 @@ function renderOrders() {
 
 
             <select
+
               data-id="${
                 escapeAttr(
                   order.invoiceNumber ||
@@ -1124,6 +1452,7 @@ function renderOrders() {
                   ""
                 )
               }"
+
             >
 
               ${
@@ -1137,20 +1466,25 @@ function renderOrders() {
                 ]
 
                   .map(
-                    (status) =>
-                      `<option
-                        ${
-                          status ===
-                          (
-                            order.orderStatus ||
-                            "Paid"
-                          )
-                            ? "selected"
-                            : ""
-                        }
-                      >
-                        ${status}
-                      </option>`
+                    (status) => `
+
+                    <option
+                      ${
+                        status ===
+                        (
+                          order.orderStatus ||
+                          "Paid"
+                        )
+
+                          ? "selected"
+
+                          : ""
+                      }
+                    >
+                      ${status}
+                    </option>
+
+                  `
                   )
 
                   .join("")
@@ -1161,8 +1495,7 @@ function renderOrders() {
           </article>
 
         `
-          )
-          .join("")
+        ).join("")
 
       : `
 
@@ -1189,11 +1522,13 @@ function renderOrders() {
 
             const target =
               all.find(
-                (x) =>
+                (order) =>
+
                   (
-                    x.invoiceNumber ||
-                    x.paymentId
+                    order.invoiceNumber ||
+                    order.paymentId
                   ) ===
+
                   select.dataset.id
               );
 
@@ -1210,12 +1545,15 @@ function renderOrders() {
 
               "tdcAdminOrders",
 
-              JSON.stringify(all)
+              JSON.stringify(
+                all
+              )
 
             );
 
 
             renderStats();
+
             renderOrders();
 
           };
@@ -1233,33 +1571,35 @@ function renderOrders() {
 function renderCategoryOptions() {
 
   const datalist =
-    document.querySelector(
-      "#categoryOptions"
+    document.getElementById(
+      "categoryOptions"
     );
-
 
   if (!datalist) return;
 
 
-  datalist.innerHTML =
+  const categories =
+
     [
       ...new Set(
-        allMenuItems()
-          .map(
-            (x) =>
-              x.category
-          )
+
+        allMenuItems().map(
+          (item) =>
+            item.category
+        )
+
       )
-    ]
+    ].sort();
 
-      .sort()
 
-      .map(
-        (category) =>
-          `<option value="${escapeAttr(category)}"></option>`
-      )
+  datalist.innerHTML =
 
-      .join("");
+    categories.map(
+      (category) =>
+
+        `<option value="${escapeAttr(category)}"></option>`
+
+    ).join("");
 
 }
 
@@ -1271,10 +1611,9 @@ function renderCategoryOptions() {
 function renderInventory() {
 
   const inventoryList =
-    document.querySelector(
-      "#inventoryList"
+    document.getElementById(
+      "inventoryList"
     );
-
 
   if (!inventoryList) return;
 
@@ -1287,214 +1626,342 @@ function renderInventory() {
 
 
   inventoryList.innerHTML =
+
     items.length
 
-      ? items
-          .map(
-            (item, index) => {
+      ? items.map(
+          (
+            item,
+            index
+          ) => {
 
-              const override =
-                overrides[
-                  item.name
-                ] || {};
+            const override =
+              overrides[
+                item.name
+              ] || {};
 
 
-              const stock =
-                Number.isFinite(
-                  Number(
+            const description =
+
+              override.description ||
+
+              item.description ||
+
+              "";
+
+
+            const image =
+
+              override.image ||
+
+              item.image ||
+
+              "";
+
+
+            const stock =
+
+              Number.isFinite(
+                Number(
+                  override.stock
+                )
+              )
+
+                ? Number(
                     override.stock
                   )
-                )
 
-                  ? override.stock
+                : Number.isFinite(
+                    Number(
+                      item.stock
+                    )
+                  )
 
-                  : Number.isFinite(
-                      Number(
-                        item.stock
-                      )
+                  ? Number(
+                      item.stock
                     )
 
-                    ? item.stock
-
-                    : 999;
+                  : 999;
 
 
-              const description =
-                override.description ||
-                item.description ||
-                "";
+            const available =
+
+              override.available !==
+                false &&
+
+              item.available !==
+                false;
 
 
-              const image =
-                override.image ||
-                item.image ||
-                "";
+            const bestseller =
+
+              override.bestseller ===
+                true ||
+
+              item.bestseller ===
+                true;
 
 
-              const available =
-                override.available !==
-                  false &&
-                item.available !== false;
+            return `
+
+              <article class="item">
+
+                <div>
+
+                  <div class="item-head">
+
+                    <div>
+
+                      <strong>
+
+                        ${
+                          escapeAttr(
+                            item.name
+                          )
+                        }
+
+                      </strong>
 
 
-              const bestseller =
-                override.bestseller ===
-                  true ||
-                item.bestseller ===
-                  true;
+                      <div class="badge">
 
+                        ${
+                          escapeAttr(
+                            item.category
+                          )
+                        }
 
-              return `
-
-                <article class="item">
-
-                  <div>
-
-                    <div class="item-head">
-
-                      <div>
-
-                        <strong>
-                          ${
-                            escapeAttr(
-                              item.name
-                            )
-                          }
-                        </strong>
-
-                        <div class="badge">
-
-                          ${
-                            escapeAttr(
-                              item.category
-                            )
-                          }
-
-                          ${
-                            item.custom
-                              ? " • Custom"
-                              : ""
-                          }
-
-                        </div>
+                        ${
+                          item.custom
+                            ? " • Custom"
+                            : ""
+                        }
 
                       </div>
 
-
-                      <strong>
-                        ${money(item.price)}
-                      </strong>
-
                     </div>
+
+
+                    <strong>
+
+                      ${
+                        money(
+                          item.price
+                        )
+                      }
+
+                    </strong>
 
                   </div>
 
-
-                  <div class="item-fields">
-
-                    <input
-                      id="d${index}"
-                      placeholder="Short description"
-                      value="${escapeAttr(description)}"
-                    >
+                </div>
 
 
-                    <input
-                      id="s${index}"
-                      type="number"
-                      min="0"
-                      value="${stock}"
-                      title="Stock"
-                    >
+                ${
+                  image
 
+                    ? `
 
-                    <label class="switch">
+                    <div style="margin:12px 0;">
 
-                      <input
-                        id="a${index}"
-                        type="checkbox"
-                        ${
-                          available
-                            ? "checked"
-                            : ""
-                        }
+                      <img
+
+                        src="${escapeAttr(image)}"
+
+                        alt="${escapeAttr(item.name)}"
+
+                        loading="lazy"
+
+                        style="
+                          width:160px;
+                          max-width:100%;
+                          height:120px;
+                          object-fit:cover;
+                          border-radius:12px;
+                          border:1px solid #333;
+                        "
+
                       >
 
-                      Available
+                    </div>
 
+                  `
+
+                    : `
+
+                    <div
+                      style="
+                        margin:12px 0;
+                        color:#888;
+                        font-size:13px;
+                      "
+                    >
+                      No image uploaded
+                    </div>
+
+                  `
+                }
+
+
+                <div class="item-fields">
+
+
+                  <input
+
+                    id="d${index}"
+
+                    placeholder="Short description"
+
+                    value="${escapeAttr(description)}"
+
+                  >
+
+
+                  <input
+
+                    id="s${index}"
+
+                    type="number"
+
+                    min="0"
+
+                    value="${stock}"
+
+                    title="Stock"
+
+                  >
+
+
+                  <label class="switch">
+
+                    <input
+
+                      id="a${index}"
+
+                      type="checkbox"
+
+                      ${
+                        available
+                          ? "checked"
+                          : ""
+                      }
+
+                    >
+
+                    Available
+
+                  </label>
+
+
+                  <textarea
+
+                    id="t${index}"
+
+                    placeholder="Detailed item description"
+
+                  >${escapeAttr(description)}</textarea>
+
+
+                  <div>
+
+                    <label
+                      for="p${index}"
+                      style="
+                        display:block;
+                        margin-bottom:6px;
+                        font-weight:700;
+                      "
+                    >
+                      ${
+                        image
+                          ? "Replace Image"
+                          : "Upload Image"
+                      }
                     </label>
 
 
-                    <textarea
-                      id="t${index}"
-                      placeholder="Detailed item description"
-                    >${escapeAttr(description)}</textarea>
-
-
                     <input
+
                       id="p${index}"
-                      type="url"
-                      placeholder="Food image URL (https://...)"
-                      value="${escapeAttr(image)}"
+
+                      type="file"
+
+                      accept="image/jpeg,image/png,image/webp"
+
                     >
-
-
-                    <label class="switch">
-
-                      <input
-                        id="b${index}"
-                        type="checkbox"
-                        ${
-                          bestseller
-                            ? "checked"
-                            : ""
-                        }
-                      >
-
-                      Bestseller
-
-                    </label>
-
-
-                    <div class="item-actions">
-
-                      <button
-                        class="save"
-                        data-save="${index}"
-                      >
-                        Save item
-                      </button>
-
-
-                      <button
-                        class="delete-item"
-                        data-delete="${index}"
-                      >
-                        Remove item
-                      </button>
-
-                    </div>
 
                   </div>
 
-                </article>
 
-              `;
+                  <label class="switch">
 
-            }
-          )
+                    <input
 
-          .join("")
+                      id="b${index}"
+
+                      type="checkbox"
+
+                      ${
+                        bestseller
+                          ? "checked"
+                          : ""
+                      }
+
+                    >
+
+                    Bestseller
+
+                  </label>
+
+
+                  <div class="item-actions">
+
+                    <button
+
+                      class="save"
+
+                      data-save="${index}"
+
+                    >
+                      Save item
+                    </button>
+
+
+                    <button
+
+                      class="delete-item"
+
+                      data-delete="${index}"
+
+                    >
+                      Remove item
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </article>
+
+            `;
+
+          }
+        ).join("")
 
       : `
 
         <div class="order">
+
           No menu items.
+
           Use “Add New Item” above.
+
         </div>
 
       `;
 
+
+  /* SAVE ITEM */
 
   document
     .querySelectorAll(
@@ -1504,7 +1971,7 @@ function renderInventory() {
       (button) => {
 
         button.onclick =
-          () => {
+          async () => {
 
             const index =
               Number(
@@ -1516,93 +1983,193 @@ function renderInventory() {
               items[index];
 
 
+            if (!item) {
+
+              return;
+
+            }
+
+
             const all =
               getOverrides();
 
 
-            all[item.name] = {
+            let imageUrl =
 
-              ...(all[item.name] || {}),
+              all[item.name]?.image ||
 
-              description:
-                document
-                  .querySelector(
-                    `#t${index}`
-                  )
-                  .value
-                  .trim() ||
+              item.image ||
 
-                document
-                  .querySelector(
-                    `#d${index}`
-                  )
-                  .value
-                  .trim(),
+              "";
 
-              stock:
-                Number(
+
+            const imageInput =
+              document.getElementById(
+                `p${index}`
+              );
+
+
+            const newImageFile =
+
+              imageInput?.files?.[0] ||
+
+              null;
+
+
+            try {
+
+              button.disabled =
+                true;
+
+
+              button.textContent =
+                newImageFile
+
+                  ? "Uploading..."
+
+                  : "Saving...";
+
+
+              if (newImageFile) {
+
+                imageUrl =
+
+                  await uploadMenuImage(
+
+                    newImageFile,
+
+                    item.name
+
+                  );
+
+              }
+
+
+              all[item.name] = {
+
+                ...(all[item.name] || {}),
+
+                description:
+
                   document
-                    .querySelector(
-                      `#s${index}`
+                    .getElementById(
+                      `t${index}`
                     )
-                    .value
-                ),
+                    ?.value
+                    .trim()
 
-              available:
-                document
-                  .querySelector(
-                    `#a${index}`
+                  ||
+
+                  document
+                    .getElementById(
+                      `d${index}`
+                    )
+                    ?.value
+                    .trim()
+
+                  ||
+
+                  "",
+
+
+                stock:
+
+                  Number(
+                    document
+                      .getElementById(
+                        `s${index}`
+                      )
+                      ?.value || 0
+                  ),
+
+
+                available:
+
+                  Boolean(
+                    document
+                      .getElementById(
+                        `a${index}`
+                      )
+                      ?.checked
+                  ),
+
+
+                image:
+
+                  imageUrl,
+
+
+                bestseller:
+
+                  Boolean(
+                    document
+                      .getElementById(
+                        `b${index}`
+                      )
+                      ?.checked
                   )
-                  .checked,
 
-              image:
-                document
-                  .querySelector(
-                    `#p${index}`
-                  )
-                  .value
-                  .trim(),
-
-              bestseller:
-                document
-                  .querySelector(
-                    `#b${index}`
-                  )
-                  .checked
-
-            };
+              };
 
 
-            localStorage.setItem(
+              localStorage.setItem(
 
-              "tdcCatalogOverrides",
+                "tdcCatalogOverrides",
 
-              JSON.stringify(all)
+                JSON.stringify(
+                  all
+                )
 
-            );
-
-
-            button.textContent =
-              "Saved ✓";
+              );
 
 
-            setTimeout(
-              () => {
+              button.textContent =
+                "Saved ✓";
 
-                button.textContent =
-                  "Save item";
 
-              },
+              setTimeout(
+                () => {
 
-              1200
+                  renderInventory();
 
-            );
+                },
+
+                600
+              );
+
+            } catch (error) {
+
+              console.error(
+                "Save menu item failed:",
+                error
+              );
+
+
+              alert(
+
+                error.message ||
+
+                "Could not save the menu item."
+
+              );
+
+
+              button.disabled =
+                false;
+
+
+              button.textContent =
+                "Save item";
+
+            }
 
           };
 
       }
     );
 
+
+  /* DELETE ITEM */
 
   document
     .querySelectorAll(
@@ -1614,18 +2181,31 @@ function renderInventory() {
         button.onclick =
           () => {
 
+            const index =
+              Number(
+                button.dataset.delete
+              );
+
+
             const item =
-              items[
-                Number(
-                  button.dataset.delete
-                )
-              ];
+              items[index];
+
+
+            if (!item) {
+
+              return;
+
+            }
 
 
             if (
+
               !confirm(
+
                 `Remove “${item.name}” from the customer menu?`
+
               )
+
             ) {
 
               return;
@@ -1637,12 +2217,14 @@ function renderInventory() {
 
               saveCustomItems(
 
-                getCustomItems()
-                  .filter(
-                    (x) =>
-                      x.name !==
-                      item.name
-                  )
+                getCustomItems().filter(
+
+                  (customItem) =>
+
+                    customItem.name !==
+                    item.name
+
+                )
 
               );
 
@@ -1672,12 +2254,15 @@ function renderInventory() {
 
               "tdcCatalogOverrides",
 
-              JSON.stringify(all)
+              JSON.stringify(
+                all
+              )
 
             );
 
 
             renderInventory();
+
             renderCategoryOptions();
 
           };
@@ -1692,67 +2277,94 @@ function renderInventory() {
 
 
 /* =========================================================
-   ADD NEW MENU ITEM
+   ADD NEW ITEM
 ========================================================= */
 
-function addNewItem() {
+async function addNewItem() {
 
   const name =
     document
-      .querySelector(
-        "#newName"
+      .getElementById(
+        "newName"
       )
-      .value
-      .trim();
+      ?.value
+      .trim() || "";
 
 
   const category =
     document
-      .querySelector(
-        "#newCategory"
+      .getElementById(
+        "newCategory"
       )
-      .value
-      .trim();
+      ?.value
+      .trim() || "";
 
 
   const price =
     Number(
       document
-        .querySelector(
-          "#newPrice"
+        .getElementById(
+          "newPrice"
         )
-        .value
+        ?.value
     );
 
 
   const stock =
     Number(
       document
-        .querySelector(
-          "#newStock"
+        .getElementById(
+          "newStock"
         )
-        .value || 999
+        ?.value || 999
     );
 
 
   const message =
-    document.querySelector(
-      "#addItemMessage"
+    document.getElementById(
+      "addItemMessage"
     );
 
 
-  message.textContent = "";
+  const imageInput =
+    document.getElementById(
+      "newImageFile"
+    );
+
+
+  const imageFile =
+    imageInput?.files?.[0] ||
+    null;
+
+
+  if (message) {
+
+    message.textContent =
+      "";
+
+  }
 
 
   if (
+
     !name ||
+
     !category ||
-    !Number.isFinite(price) ||
+
+    !Number.isFinite(
+      price
+    ) ||
+
     price <= 0
+
   ) {
 
-    message.textContent =
-      "Enter item name, category and a valid price.";
+    if (message) {
+
+      message.textContent =
+        "Enter item name, category and a valid price.";
+
+    }
 
     return;
 
@@ -1760,141 +2372,250 @@ function addNewItem() {
 
 
   if (
-    allMenuItems()
-      .some(
-        (item) =>
-          item.name
-            .toLowerCase() ===
-          name.toLowerCase()
-      )
-  ) {
 
-    message.textContent =
-      "An item with this name already exists.";
+    allMenuItems().some(
 
-    return;
+      (item) =>
 
-  }
+        item.name
+          .toLowerCase() ===
 
+        name
+          .toLowerCase()
 
-  const item = {
-
-    id:
-      `custom-${Date.now()}`,
-
-    name,
-
-    category,
-
-    price:
-      Math.round(price),
-
-    description:
-      document
-        .querySelector(
-          "#newDescription"
-        )
-        .value
-        .trim(),
-
-    image:
-      document
-        .querySelector(
-          "#newImage"
-        )
-        .value
-        .trim(),
-
-    stock:
-      Number.isFinite(stock) &&
-      stock >= 0
-
-        ? stock
-
-        : 999,
-
-    available:
-      document
-        .querySelector(
-          "#newAvailable"
-        )
-        .checked,
-
-    bestseller:
-      document
-        .querySelector(
-          "#newBestseller"
-        )
-        .checked,
-
-    custom: true
-
-  };
-
-
-  saveCustomItems([
-
-    ...getCustomItems(),
-
-    item
-
-  ]);
-
-
-  const overrides =
-    getOverrides();
-
-
-  overrides[item.name] = {
-
-    description:
-      item.description,
-
-    image:
-      item.image,
-
-    stock:
-      item.stock,
-
-    available:
-      item.available,
-
-    bestseller:
-      item.bestseller
-
-  };
-
-
-  localStorage.setItem(
-
-    "tdcCatalogOverrides",
-
-    JSON.stringify(
-      overrides
     )
 
-  );
+  ) {
+
+    if (message) {
+
+      message.textContent =
+        "An item with this name already exists.";
+
+    }
+
+    return;
+
+  }
 
 
-  [
-    "newName",
-    "newPrice",
-    "newCategory",
-    "newDescription",
-    "newImage"
-  ]
+  const addButton =
+    document.getElementById(
+      "addNewItem"
+    );
 
-    .forEach(
+
+  try {
+
+    if (addButton) {
+
+      addButton.disabled =
+        true;
+
+
+      addButton.textContent =
+
+        imageFile
+
+          ? "Uploading image..."
+
+          : "Adding item...";
+
+    }
+
+
+    let imageUrl =
+      "";
+
+
+    if (imageFile) {
+
+      if (
+        newImageUploadStatus
+      ) {
+
+        newImageUploadStatus.textContent =
+          "Uploading image...";
+
+      }
+
+
+      imageUrl =
+
+        await uploadMenuImage(
+
+          imageFile,
+
+          name
+
+        );
+
+
+      if (
+        newImageUploadStatus
+      ) {
+
+        newImageUploadStatus.textContent =
+          "Image uploaded ✓";
+
+      }
+
+    }
+
+
+    const item = {
+
+      id:
+
+        `custom-${Date.now()}`,
+
+
+      name,
+
+
+      category,
+
+
+      price:
+
+        Math.round(
+          price
+        ),
+
+
+      description:
+
+        document
+          .getElementById(
+            "newDescription"
+          )
+          ?.value
+          .trim() || "",
+
+
+      image:
+
+        imageUrl,
+
+
+      stock:
+
+        Number.isFinite(
+          stock
+        ) &&
+
+        stock >= 0
+
+          ? stock
+
+          : 999,
+
+
+      available:
+
+        Boolean(
+
+          document
+            .getElementById(
+              "newAvailable"
+            )
+            ?.checked
+
+        ),
+
+
+      bestseller:
+
+        Boolean(
+
+          document
+            .getElementById(
+              "newBestseller"
+            )
+            ?.checked
+
+        ),
+
+
+      custom:
+
+        true
+
+    };
+
+
+    saveCustomItems([
+
+      ...getCustomItems(),
+
+      item
+
+    ]);
+
+
+    const overrides =
+      getOverrides();
+
+
+    overrides[
+      item.name
+    ] = {
+
+      description:
+
+        item.description,
+
+
+      image:
+
+        item.image,
+
+
+      stock:
+
+        item.stock,
+
+
+      available:
+
+        item.available,
+
+
+      bestseller:
+
+        item.bestseller
+
+    };
+
+
+    localStorage.setItem(
+
+      "tdcCatalogOverrides",
+
+      JSON.stringify(
+        overrides
+      )
+
+    );
+
+
+    [
+      "newName",
+      "newPrice",
+      "newCategory",
+      "newDescription"
+    ].forEach(
       (id) => {
 
         const input =
-          document.querySelector(
-            `#${id}`
+          document.getElementById(
+            id
           );
 
         if (input) {
 
-          input.value = "";
+          input.value =
+            "";
 
         }
 
@@ -1902,26 +2623,141 @@ function addNewItem() {
     );
 
 
-  document.querySelector(
-    "#newStock"
-  ).value = "999";
+    const stockInput =
+      document.getElementById(
+        "newStock"
+      );
 
 
-  document.querySelector(
-    "#newAvailable"
-  ).checked = true;
+    if (stockInput) {
+
+      stockInput.value =
+        "999";
+
+    }
 
 
-  document.querySelector(
-    "#newBestseller"
-  ).checked = false;
+    const availableInput =
+      document.getElementById(
+        "newAvailable"
+      );
 
 
-  message.textContent =
-    `${name} added to the menu ✓`;
+    if (availableInput) {
+
+      availableInput.checked =
+        true;
+
+    }
 
 
-  renderInventory();
+    const bestsellerInput =
+      document.getElementById(
+        "newBestseller"
+      );
+
+
+    if (bestsellerInput) {
+
+      bestsellerInput.checked =
+        false;
+
+    }
+
+
+    if (imageInput) {
+
+      imageInput.value =
+        "";
+
+    }
+
+
+    if (
+      newImagePreviewWrap
+    ) {
+
+      newImagePreviewWrap.style.display =
+        "none";
+
+    }
+
+
+    if (
+      newImagePreview
+    ) {
+
+      newImagePreview.src =
+        "";
+
+    }
+
+
+    if (
+      newImageUploadStatus
+    ) {
+
+      newImageUploadStatus.textContent =
+        "";
+
+    }
+
+
+    if (message) {
+
+      message.textContent =
+
+        `${name} added successfully ✓`;
+
+    }
+
+
+    renderInventory();
+
+    renderCategoryOptions();
+
+  } catch (error) {
+
+    console.error(
+      "Add item failed:",
+      error
+    );
+
+
+    if (message) {
+
+      message.textContent =
+
+        error.message ||
+
+        "Failed to upload image or add item.";
+
+    }
+
+
+    if (
+      newImageUploadStatus
+    ) {
+
+      newImageUploadStatus.textContent =
+        "";
+
+    }
+
+  } finally {
+
+    if (addButton) {
+
+      addButton.disabled =
+        false;
+
+
+      addButton.textContent =
+        "+ Add Item";
+
+    }
+
+  }
 
 }
 
@@ -1946,10 +2782,13 @@ document
             )
             .forEach(
               (element) =>
-                element.classList
+
+                element
+                  .classList
                   .remove(
                     "active"
                   )
+
             );
 
 
@@ -1959,8 +2798,8 @@ document
 
 
           const panel =
-            document.querySelector(
-              `#${button.dataset.tab}`
+            document.getElementById(
+              button.dataset.tab
             );
 
 
@@ -1983,8 +2822,8 @@ document
 ========================================================= */
 
 const orderFilter =
-  document.querySelector(
-    "#orderFilter"
+  document.getElementById(
+    "orderFilter"
   );
 
 
@@ -2001,8 +2840,8 @@ if (orderFilter) {
 ========================================================= */
 
 const addNewItemButton =
-  document.querySelector(
-    "#addNewItem"
+  document.getElementById(
+    "addNewItem"
   );
 
 
@@ -2019,8 +2858,8 @@ if (addNewItemButton) {
 ========================================================= */
 
 const resetCatalogButton =
-  document.querySelector(
-    "#resetCatalog"
+  document.getElementById(
+    "resetCatalog"
   );
 
 
@@ -2030,9 +2869,13 @@ if (resetCatalogButton) {
     () => {
 
       if (
+
         confirm(
+
           "Reset all local menu changes, including added and removed items?"
+
         )
+
       ) {
 
         localStorage.removeItem(
@@ -2047,7 +2890,10 @@ if (resetCatalogButton) {
           REMOVED_KEY
         );
 
+
         renderInventory();
+
+        renderCategoryOptions();
 
       }
 
@@ -2076,7 +2922,9 @@ function setPromos(promos) {
 
     PROMO_KEY,
 
-    JSON.stringify(promos)
+    JSON.stringify(
+      promos
+    )
 
   );
 
@@ -2089,8 +2937,8 @@ function setPromos(promos) {
 function renderPromos() {
 
   const box =
-    document.querySelector(
-      "#promoList"
+    document.getElementById(
+      "promoList"
     );
 
 
@@ -2102,101 +2950,122 @@ function renderPromos() {
 
 
   box.innerHTML =
+
     promos.length
 
-      ? promos
-          .map(
-            (promo, index) => `
+      ? promos.map(
+          (
+            promo,
+            index
+          ) => `
 
-              <article class="inventory-row">
+          <article class="inventory-row">
 
-                <div>
+            <div>
 
-                  <strong>
-                    ${escapeAttr(promo.code)}
-                  </strong>
+              <strong>
 
-                  <small>
+                ${
+                  escapeAttr(
+                    promo.code
+                  )
+                }
 
-                    ${
-                      promo.audience ===
-                      "all"
-
-                        ? "All Users • reusable"
-
-                        : promo.audience ===
-                          "new"
-
-                          ? "New Users Only"
-
-                          : "Special • once per number"
-                    }
-
-                    •
-
-                    ${
-                      promo.discountType ===
-                      "percent"
-
-                        ? `${promo.value}%`
-
-                        : `₹${promo.value}`
-                    }
-
-                    off
-
-                    ${
-                      promo.minOrder
-                        ? ` • Min ₹${promo.minOrder}`
-                        : ""
-                    }
-
-                    ${
-                      promo.validUntil
-                        ? ` • Until ${escapeAttr(promo.validUntil)}`
-                        : ""
-                    }
-
-                  </small>
-
-                </div>
+              </strong>
 
 
-                <div class="inventory-actions">
+              <small>
 
-                  <label class="switch">
+                ${
+                  promo.audience ===
+                  "all"
 
-                    <input
-                      type="checkbox"
-                      data-pactive="${index}"
-                      ${
-                        promo.active !==
-                        false
-                          ? "checked"
-                          : ""
-                      }
-                    >
+                    ? "All Users • reusable"
 
-                    Active
+                    : promo.audience ===
+                      "new"
 
-                  </label>
+                      ? "New Users Only"
+
+                      : "Special • once per number"
+                }
+
+                •
+
+                ${
+                  promo.discountType ===
+                  "percent"
+
+                    ? `${promo.value}%`
+
+                    : `₹${promo.value}`
+                }
+
+                off
+
+                ${
+                  promo.minOrder
+
+                    ? ` • Min ₹${promo.minOrder}`
+
+                    : ""
+                }
+
+                ${
+                  promo.validUntil
+
+                    ? ` • Until ${escapeAttr(promo.validUntil)}`
+
+                    : ""
+                }
+
+              </small>
+
+            </div>
 
 
-                  <button
-                    data-pdelete="${index}"
-                    class="danger"
-                  >
-                    Delete
-                  </button>
+            <div class="inventory-actions">
 
-                </div>
+              <label class="switch">
 
-              </article>
+                <input
 
-            `
-          )
+                  type="checkbox"
 
-          .join("")
+                  data-pactive="${index}"
+
+                  ${
+                    promo.active !==
+                    false
+
+                      ? "checked"
+
+                      : ""
+                  }
+
+                >
+
+                Active
+
+              </label>
+
+
+              <button
+
+                data-pdelete="${index}"
+
+                class="danger"
+
+              >
+                Delete
+              </button>
+
+            </div>
+
+          </article>
+
+        `
+        ).join("")
 
       : `
 
@@ -2221,15 +3090,25 @@ function renderPromos() {
               getPromos();
 
 
-            promos[
+            const index =
               Number(
                 input.dataset.pactive
-              )
-            ].active =
-              input.checked;
+              );
 
 
-            setPromos(promos);
+            if (
+              promos[index]
+            ) {
+
+              promos[index].active =
+                input.checked;
+
+            }
+
+
+            setPromos(
+              promos
+            );
 
           };
 
@@ -2248,9 +3127,11 @@ function renderPromos() {
           () => {
 
             if (
+
               !confirm(
                 "Delete this promo?"
               )
+
             ) {
 
               return;
@@ -2273,7 +3154,9 @@ function renderPromos() {
             );
 
 
-            setPromos(promos);
+            setPromos(
+              promos
+            );
 
           };
 
@@ -2288,8 +3171,8 @@ function renderPromos() {
 ========================================================= */
 
 const savePromoButton =
-  document.querySelector(
-    "#savePromo"
+  document.getElementById(
+    "savePromo"
   );
 
 
@@ -2300,27 +3183,28 @@ if (savePromoButton) {
 
       const code =
         document
-          .querySelector(
-            "#promoCode"
+          .getElementById(
+            "promoCode"
           )
-          .value
+          ?.value
           .trim()
-          .toUpperCase();
+          .toUpperCase() ||
+        "";
 
 
       const value =
         Number(
           document
-            .querySelector(
-              "#promoValue"
+            .getElementById(
+              "promoValue"
             )
-            .value
+            ?.value
         );
 
 
       const message =
-        document.querySelector(
-          "#promoAdminMsg"
+        document.getElementById(
+          "promoAdminMsg"
         );
 
 
@@ -2329,27 +3213,38 @@ if (savePromoButton) {
         !value
       ) {
 
-        message.textContent =
-          "Enter a promo code and discount value.";
+        if (message) {
+
+          message.textContent =
+            "Enter a promo code and discount value.";
+
+        }
 
         return;
 
       }
 
 
-      let promos =
+      const promos =
         getPromos();
 
 
       if (
+
         promos.some(
           (promo) =>
-            promo.code === code
+            promo.code ===
+            code
         )
+
       ) {
 
-        message.textContent =
-          "This promo code already exists.";
+        if (message) {
+
+          message.textContent =
+            "This promo code already exists.";
+
+        }
 
         return;
 
@@ -2360,90 +3255,149 @@ if (savePromoButton) {
 
         code,
 
+
         audience:
+
           document
-            .querySelector(
-              "#promoAudience"
+            .getElementById(
+              "promoAudience"
             )
-            .value,
+            ?.value ||
+          "all",
+
 
         discountType:
+
           document
-            .querySelector(
-              "#promoDiscountType"
+            .getElementById(
+              "promoDiscountType"
             )
-            .value,
+            ?.value ||
+          "percent",
+
 
         value,
 
+
         minOrder:
+
           Number(
+
             document
-              .querySelector(
-                "#promoMinOrder"
+              .getElementById(
+                "promoMinOrder"
               )
-              .value || 0
+              ?.value || 0
+
           ),
+
 
         maxDiscount:
+
           Number(
+
             document
-              .querySelector(
-                "#promoMaxDiscount"
+              .getElementById(
+                "promoMaxDiscount"
               )
-              .value || 0
+              ?.value || 0
+
           ),
+
 
         validFrom:
+
           document
-            .querySelector(
-              "#promoFrom"
+            .getElementById(
+              "promoFrom"
             )
-            .value,
+            ?.value ||
+          "",
+
 
         validUntil:
+
           document
-            .querySelector(
-              "#promoUntil"
+            .getElementById(
+              "promoUntil"
             )
-            .value,
+            ?.value ||
+          "",
+
 
         usageLimit:
+
           Number(
+
             document
-              .querySelector(
-                "#promoUsageLimit"
+              .getElementById(
+                "promoUsageLimit"
               )
-              .value || 0
+              ?.value || 0
+
           ),
 
-        used: 0,
+
+        used:
+
+          0,
+
 
         active:
-          document
-            .querySelector(
-              "#promoActive"
-            )
-            .checked
+
+          Boolean(
+
+            document
+              .getElementById(
+                "promoActive"
+              )
+              ?.checked
+
+          )
 
       });
 
 
-      setPromos(promos);
+      setPromos(
+        promos
+      );
 
 
-      message.textContent =
-        `${code} saved ✓`;
+      if (message) {
+
+        message.textContent =
+
+          `${code} saved ✓`;
+
+      }
 
 
-      document.querySelector(
-        "#promoCode"
-      ).value = "";
+      const codeInput =
+        document.getElementById(
+          "promoCode"
+        );
 
 
-      document.querySelector(
-        "#promoValue"
-      ).value = "";
+      if (codeInput) {
+
+        codeInput.value =
+          "";
+
+      }
+
+
+      const valueInput =
+        document.getElementById(
+          "promoValue"
+        );
+
+
+      if (valueInput) {
+
+        valueInput.value =
+          "";
+
+      }
 
     };
 
@@ -2455,13 +3409,18 @@ if (savePromoButton) {
 ========================================================= */
 
 renderStats();
+
 renderOrders();
+
 renderInventory();
+
 renderPromos();
+
+renderCategoryOptions();
 
 
 /* =========================================================
-   START AUTH CHECK LAST
+   START SECURELY
 ========================================================= */
 
 setAdminUi(false);
