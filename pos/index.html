@@ -343,11 +343,58 @@ function renderCart(){
 }
 function autoPayment(){if(['Swiggy','Zomato'].includes($('orderType').value))$('payment').value='Online'}
 function clearCart(){cart=[];['discount','deliveryCharge','packingCharge'].forEach(id=>$(id).value=0);['customerName','customerPhone','notes','orderRef'].forEach(id=>$(id).value='');renderCart()}
-state.orders.push(o);save(); if(printIt)printReceipt(o);clearCart();alert(`Order #${o.id} saved.`);
- if(!cart.length)return alert('Add at least one item.');
- let subtotal=cart.reduce((s,x)=>s+x.price*x.qty,0),discount=+($('discount').value||0),delivery=+($('deliveryCharge').value||0),packing=+($('packingCharge').value||0),total=Math.max(0,subtotal-discount+delivery+packing);
- let o={id:state.billNo++,date:new Date().toISOString(),type:$('orderType').value,payment:$('payment').value,ref:$('orderRef').value,customer:$('customerName').value,phone:$('customerPhone').value,notes:$('notes').value,items:structuredClone(cart),subtotal,discount,delivery,packing,total,status:'Completed'};
- state.orders.push(o);save(); if(printIt)printReceipt(o);clearCart();alert(`Order #${o.id} saved.`);
+async function completeOrder(printIt){
+  if(!cart.length) return alert('Add at least one item.');
+
+  let subtotal = cart.reduce((s,x)=>s+x.price*x.qty,0),
+      discount = +($('discount').value||0),
+      delivery = +($('deliveryCharge').value||0),
+      packing = +($('packingCharge').value||0),
+      total = Math.max(0,subtotal-discount+delivery+packing);
+
+  let o = {
+    id: state.billNo++,
+    date: new Date().toISOString(),
+    type: $('orderType').value,
+    payment: $('payment').value,
+    ref: $('orderRef').value,
+    customer: $('customerName').value,
+    phone: $('customerPhone').value,
+    notes: $('notes').value,
+    items: structuredClone(cart),
+    subtotal,
+    discount,
+    delivery,
+    packing,
+    total,
+    status: 'Completed'
+  };
+
+  // Always save locally first
+  state.orders.push(o);
+  save();
+
+  if(printIt) printReceipt(o);
+
+  clearCart();
+  alert(`Order #${o.id} saved.`);
+
+  // Automatically sync the completed order to Supabase
+  try{
+    const r = await fetch('../api/save-pos-order', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(o)
+    });
+
+    if(r.ok){
+      console.log(`Order #${o.id} synced to cloud automatically.`);
+    }else{
+      console.warn(`Order #${o.id} saved locally; cloud sync failed.`);
+    }
+  }catch(err){
+    console.warn(`Order #${o.id} saved locally; cloud sync pending.`, err);
+  }
 }
 function printReceipt(o){
  let s=state.settings,w=window.open('','_blank','width=430,height=750');
