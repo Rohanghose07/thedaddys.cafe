@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Admin • The Daddy's Cafe</title>
+
+  <link
+    rel="stylesheet"
+    href="admin.css"
+  >
+
+  <style>
+
+    /* =========================================
+       ADMIN LOGIN
+    ========================================= */
+
+    #adminLoginGate {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+
+      background: #0b0b0b;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      font-family: Arial, sans-serif;
+    }
+
+
+    .admin-login-card {
+      width: min(420px, 100%);
+
+      background: #151515;
+
+      border: 1px solid #303030;
+      border-radius: 22px;
+
+      padding: 28px;
+
+      box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.45);
+
+      color: #ffffff;
+    }
+
+
+    .admin-login-card h1 {
+      margin: 0 0 6px;
+
+      font-size: 25px;
+    }
+
+
+    .admin-login-card p {
+      margin: 0 0 22px;
+
+      color: #aaaaaa;
+    }
+
+
+    .admin-login-card label {
+      display: block;
+
+      margin: 13px 0 6px;
+
+      font-weight: 700;
+    }
+
+
+    .admin-login-card input {
+      width: 100%;
+
+      box-sizing: border-box;
+
+      padding: 13px 14px;
+
+      border-radius: 12px;
+
+      border: 1px solid #3a3a3a;
+
+      background: #0f0f0f;
+
+      color: #ffffff;
+
+      font-size: 15px;
+    }
+
+
+    .admin-login-card input:focus {
+      outline: none;
+
+      border-color: #f59e0b;
+    }
+
+
+    .admin-login-card button {
+      width: 100%;
+
+      margin-top: 18px;
+
+      padding: 14px;
+
+      border: 0;
+
+      border-radius: 12px;
+
+      background: #f59e0b;
+
+      color: #111111;
+
+      font-weight: 800;
+
+      cursor: pointer;
+    }
+
+
+    .admin-login-card button:hover {
+      opacity: 0.92;
+    }
+
+
+    .admin-login-card button:disabled {
+      opacity: 0.6;
+
+      cursor: not-allowed;
+    }
+
+
+    #adminLoginError {
+      min-height: 18px;
+
+      margin-top: 12px;
+
+      color: #f87171;
+
+      font-size: 13px;
+    }
+
+
+    /* =========================================
+       LOGOUT BUTTON
+    ========================================= */
+
+    #adminLogoutBtn {
+      position: fixed;
+
+      right: 18px;
+      bottom: 18px;
+
+      z-index: 9000;
+
+      padding: 10px 15px;
+
+      border: 1px solid #444444;
+
+      border-radius: 12px;
+
+      background: #171717;
+
+      color: #ffffff;
+
+      font-weight: 700;
+
+      cursor: pointer;
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<!-- =========================================
+     SUPABASE ADMIN LOGIN
+========================================= -->
+
+<div id="adminLoginGate">
+
+  <form
+    class="admin-login-card"
+    id="adminLoginForm"
+  >
+
+    <h1>
+      The Daddy's Cafe
+    </h1>
+
+    <p>
+      Admin Portal
+    </p>
+
+
+    <label for="adminEmail">
+      Email
+    </label>
+
+    <input
+      id="adminEmail"
+      type="email"
+      autocomplete="email"
+      placeholder="Admin email"
+      required
+    >
+
+
+    <label for="adminPass">
+      Password
+    </label>
+
+    <input
+      id="adminPass"
+      type="password"
+      autocomplete="current-password"
+      placeholder="Password"
+      required
+    >
+
+
+    <button
+      id="adminLoginBtn"
+      type="submit"
+    >
+      LOGIN
+    </button>
+
+
+    <div
+      id="adminLoginError"
+      aria-live="polite"
+    ></div>
+
+  </form>
+
+</div>
+
+
+<!-- =========================================
+     LOGOUT
+========================================= -->
+
+<button
+  id="adminLogoutBtn"
+  type="button"
+  style="display:none"
+>
+  Logout
+</button>
+
+
+
+<!-- =========================================
+     ADMIN HEADER
+========================================= -->
+
+<header>
+
+  <div>
+
+    <strong>
+      The Daddy's Cafe
+    </strong>
+
+    <span>
+      Admin Dashboard
+    </span>
+
+  </div>
+
+
+  <a href="index.html">
+    View Store
+  </a>
+
+</header>
+
+
+
+<!-- =========================================
+     ADMIN DASHBOARD
+========================================= -->
+
+<main>
+
+
+<!-- STATS -->
+
+<section
+  class="stats"
+  id="stats"
+></section>
+
+
+
+<!-- NAVIGATION -->
+
+<nav>
+
+  <button
+    class="tab active"
+    data-tab="orders"
+  >
+    Orders
+  </button>
+
+
+  <button
+    class="tab"
+    data-tab="inventory"
+  >
+    Inventory & Menu
+  </button>
+
+
+  <button
+    class="tab"
+    data-tab="promos"
+  >
+    Promo Codes
+  </button>
+
+  <button class="tab" data-tab="businessHours">
+    Store Hours
+  </button>
+
+  <button class="tab" data-tab="categoryManager">
+    Categories
+  </button>
+
+  <button class="tab" data-tab="customers">
+    Customers
+  </button>
+
+</nav>
+
+
+
+
+
+<!-- =========================================
+     STORE HOURS & ORDER STATUS
+========================================= -->
+<section id="businessHours" class="panel business-hours-panel">
+  <div class="section-head">
+    <div>
+      <span class="eyebrow">STORE AVAILABILITY</span>
+      <h2>Order Status & Opening Hours</h2>
+      <p>Control whether the website accepts orders and set your opening hours for each day. Changes apply to the storefront after saving.</p>
+    </div>
+  </div>
+
+  <div id="businessHoursStatus" class="hours-live-status">Checking current status…</div>
+
+  <label class="ordering-switch" for="orderingEnabled">
+    <input id="orderingEnabled" type="checkbox" checked>
+    <span>
+      <strong>Accept Online Orders</strong>
+      <small>Turn this OFF anytime to instantly show the store as Offline, regardless of scheduled hours.</small>
+    </span>
+  </label>
+
+  <div class="hours-help">
+    <strong>Weekly schedule</strong>
+    <span>Enable each open day and set one or two service shifts. Leave Shift 2 blank when you only have one continuous opening period.</span>
+  </div>
+
+  <div id="businessHoursGrid" class="business-hours-grid"></div>
+
+  <div class="hours-actions">
+    <button id="saveBusinessHours" class="primary">Save Order Status & Hours</button>
+    <span id="businessHoursMsg" class="form-message"></span>
+  </div>
+</section>
+
+<!-- =========================================
+     ORDERS
+========================================= -->
+
+<section
+  id="orders"
+  class="panel active"
+>
+
+  <div class="toolbar">
+
+    <h2>
+      Orders
+    </h2>
+
+
+    <select id="orderFilter">
+
+      <option>
+        All
+      </option>
+
+      <option>
+        Paid
+      </option>
+
+      <option>
+        Preparing
+      </option>
+
+      <option>
+        Ready
+      </option>
+
+      <option>
+        Out for Delivery
+      </option>
+
+      <option>
+        Completed
+      </option>
+
+      <option>
+        Cancelled
+      </option>
+
+    </select>
+
+  </div>
+
+
+  <div id="ordersList"></div>
+
+</section>
+
+
+
+<!-- =========================================
+     INVENTORY & MENU
+========================================= -->
+
+
+<section id="categoryManager" class="panel premium-admin-panel">
+  <div class="section-head"><div><span class="eyebrow">MENU STRUCTURE</span><h2>Category Manager</h2><p>Reorder categories without editing code. Changes sync to the storefront after saving.</p></div><button id="addCategoryBtn" class="primary">+ Add Category</button></div>
+  <div id="categoryManagerMsg" class="admin-inline-msg"></div>
+  <div id="categoryManagerList" class="category-manager-list"></div>
+</section>
+
+<section id="customers" class="panel premium-admin-panel">
+  <div class="section-head"><div><span class="eyebrow">CUSTOMER CRM</span><h2>Customers</h2><p>Customer details and purchase history from completed website orders.</p></div><button id="refreshCustomersBtn" class="secondary">Refresh</button></div>
+  <div class="customer-kpis" id="customerKpis"></div>
+  <div class="table-scroll"><table class="admin-table"><thead><tr><th>Customer</th><th>Phone</th><th>Address</th><th>Orders</th><th>Total Spend</th><th>Last Order</th></tr></thead><tbody id="customerTableBody"></tbody></table></div>
+</section>
+
+<section
+  id="inventory"
+  class="panel"
+>
+
+
+  <div class="toolbar">
+
+    <div>
+
+      <h2>
+        Inventory & Menu
+      </h2>
+
+      <p>
+        Add, edit or remove menu items,
+        descriptions, images,
+        availability and stock.
+      </p>
+
+    </div>
+
+
+    <button id="resetCatalog">
+      Reset menu changes
+    </button>
+
+  </div>
+
+
+
+  <!-- ADD NEW ITEM -->
+
+  <article class="add-item-card">
+
+
+    <div class="add-item-title">
+
+      <div>
+
+        <h3>
+          Add New Item
+        </h3>
+
+        <p>
+          Create a new dish and publish it
+          to the customer menu.
+        </p>
+
+      </div>
+
+    </div>
+
+
+
+    <div class="add-item-grid">
+
+
+      <input
+        id="newName"
+        placeholder="Item name *"
+      >
+
+
+      <input
+        id="newPrice"
+        type="number"
+        min="1"
+        step="1"
+        placeholder="Price ₹ *"
+      >
+
+
+      <input
+        id="newCategory"
+        list="categoryOptions"
+        placeholder="Category *"
+      >
+
+
+      <datalist id="categoryOptions">
+      </datalist>
+
+
+      <input
+        id="newStock"
+        type="number"
+        min="0"
+        value="999"
+        placeholder="Stock"
+      >
+
+
+      <textarea
+        id="newDescription"
+        placeholder="Item description"
+      ></textarea>
+
+
+      <div class="image-upload-field">
+
+  <label for="newImageFile">
+    Food Image
+  </label>
+
+  <input
+    id="newImageFile"
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+  >
+
+  <div
+    id="newImagePreviewWrap"
+    style="display:none; margin-top:10px;"
+  >
+
+    <img
+      id="newImagePreview"
+      alt="Food image preview"
+      style="
+        width:100%;
+        max-width:220px;
+        height:150px;
+        object-fit:cover;
+        border-radius:12px;
+      "
+    >
+
+  </div>
+
+  <div
+    id="newImageUploadStatus"
+    class="form-message"
+    aria-live="polite"
+  ></div>
+
+</div>
+
+
+      <label class="switch">
+
+        <input
+          id="newAvailable"
+          type="checkbox"
+          checked
+        >
+
+        Available
+
+      </label>
+
+
+      <label class="switch">
+
+        <input
+          id="newBestseller"
+          type="checkbox"
+        >
+
+        Bestseller
+
+      </label>
+
+
+      <button
+        id="addNewItem"
+        class="save"
+      >
+        + Add Item
+      </button>
+
+    </div>
+
+
+    <div
+      id="addItemMessage"
+      class="form-message"
+      aria-live="polite"
+    ></div>
+
+  </article>
+
+
+
+  <div id="inventoryList"></div>
+
+
+</section>
+
+
+
+<!-- =========================================
+     PROMO CODES
+========================================= -->
+
+<section
+  id="promos"
+  class="panel"
+>
+
+
+  <div class="toolbar">
+
+    <div>
+
+      <h2>
+        Promo Codes
+      </h2>
+
+      <p>
+        Create All Users,
+        New Users Only,
+        or Special one-use-per-number promos.
+      </p>
+
+    </div>
+
+  </div>
+
+
+
+  <article class="add-item-card">
+
+
+    <div class="add-item-grid">
+
+
+      <input
+        id="promoCode"
+        placeholder="Promo code *"
+      >
+
+
+
+      <select id="promoAudience">
+
+        <option value="all">
+          All Users — reusable
+        </option>
+
+        <option value="new">
+          New Users Only
+        </option>
+
+        <option value="special">
+          Special — once per number
+        </option>
+
+      </select>
+
+
+
+      <select id="promoDiscountType">
+
+        <option value="percent">
+          Percentage %
+        </option>
+
+        <option value="flat">
+          Flat ₹
+        </option>
+
+      </select>
+
+
+
+      <input
+        id="promoValue"
+        type="number"
+        min="1"
+        placeholder="Discount value *"
+      >
+
+
+
+      <input
+        id="promoMinOrder"
+        type="number"
+        min="0"
+        placeholder="Minimum order ₹"
+      >
+
+
+
+      <input
+        id="promoMaxDiscount"
+        type="number"
+        min="0"
+        placeholder="Maximum discount ₹ (optional)"
+      >
+
+
+
+      <label>
+
+        Valid from
+
+        <input
+          id="promoFrom"
+          type="date"
+        >
+
+      </label>
+
+
+
+      <label>
+
+        Valid until
+
+        <input
+          id="promoUntil"
+          type="date"
+        >
+
+      </label>
+
+
+
+      <input
+        id="promoUsageLimit"
+        type="number"
+        min="0"
+        placeholder="Total usage limit (optional)"
+      >
+
+
+
+      <label class="switch">
+
+        <input
+          id="promoActive"
+          type="checkbox"
+          checked
+        >
+
+        Active
+
+      </label>
+
+
+
+      <button
+        id="savePromo"
+        class="save"
+      >
+        + Save Promo
+      </button>
+
+
+    </div>
+
+
+
+    <div
+      id="promoAdminMsg"
+      class="form-message"
+    ></div>
+
+
+  </article>
+
+
+
+  <div id="promoList"></div>
+
+
+</section>
+
+
+</main>
+
+
+
+<!-- =========================================
+     SUPABASE
+     
+     IMPORTANT:
+     Load in this exact order:
+     
+     1. Supabase library
+     2. Supabase configuration
+     3. Admin JavaScript
+========================================= -->
+
+<script
+  src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"
+></script>
+
+<script
+  src="supabase-config.js"
+></script>
+
+<script src="business-hours.js"></script>
+
+<script
+  src="admin.js"
+></script>
+
+
+</body>
+
+</html>
