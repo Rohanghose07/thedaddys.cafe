@@ -367,19 +367,15 @@ async function completeOrder(printIt){
     delivery,
     packing,
     total,
-    status: 'Completed'
+   status: 'Completed'
   };
 
   // Save locally first
+    // Save locally first
   state.orders.push(o);
   save();
 
-  if(printIt) printReceipt(o);
-
-  clearCart();
-  alert(`Order #${o.id} saved.`);
-
-  // Auto-sync to Supabase/Admin
+  // Try cloud sync BEFORE clearing the cart
   try {
     const response = await fetch('/api/save-pos-order', {
       method: 'POST',
@@ -391,23 +387,29 @@ async function completeOrder(printIt){
 
     const result = await response.json().catch(() => ({}));
 
-    if (!response.ok) {
-      console.error('POS cloud sync failed:', response.status, result);
-      return;
+    if (response.ok) {
+      o.cloudSynced = true;
+      save();
+      console.log('POS order synced successfully:', result);
+    } else {
+      console.error(
+        'POS cloud sync failed:',
+        response.status,
+        result
+      );
     }
-
-    console.log('POS order synced successfully:', result);
 
   } catch (error) {
     console.error('POS cloud sync request failed:', error);
   }
+
+  if (printIt) {
+    printReceipt(o);
+  }
+
+  clearCart();
+  alert(`Order #${o.id} saved.`);
 }
-.order-footer{background:#fff;padding-top:8px}
-.compact-fields label{margin-top:5px}
-.compact-fields input,.compact-fields select{padding:7px 8px}
-.order-panel .total-line{padding:3px 0}
-.order-panel .grand{padding-top:7px;margin-top:4px}
-.order-panel .btn{padding:9px 10px}
 .categories{flex:0 0 auto}
 .search{flex:0 0 auto}
 .items{align-content:start}
