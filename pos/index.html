@@ -343,73 +343,84 @@ function renderCart(){
 }
 function autoPayment(){if(['Swiggy','Zomato'].includes($('orderType').value))$('payment').value='Online'}
 function clearCart(){cart=[];['discount','deliveryCharge','packingCharge'].forEach(id=>$(id).value=0);['customerName','customerPhone','notes','orderRef'].forEach(id=>$(id).value='');renderCart()}
-async function completeOrder(printIt){
-  if(!cart.length) return alert('Add at least one item.');
-
-  const subtotal = cart.reduce((s,x)=>s + x.price * x.qty, 0);
-  const discount = +($('discount').value || 0);
-  const delivery = +($('deliveryCharge').value || 0);
-  const packing = +($('packingCharge').value || 0);
-  const total = Math.max(0, subtotal - discount + delivery + packing);
-
-  const o = {
-    id: state.billNo++,
-    date: new Date().toISOString(),
-    type: $('orderType').value,
-    payment: $('payment').value,
-    ref: $('orderRef').value,
-    customer: $('customerName').value,
-    phone: $('customerPhone').value,
-    notes: $('notes').value,
-    items: structuredClone(cart),
-    subtotal,
-    discount,
-    delivery,
-    packing,
-    total,
-   status: 'Completed'
-  };
-
-  // Save locally first
-    // Save locally first
-  state.orders.push(o);
+async function syncSinglePosOrder(o){
+ try{
+  const response=await fetch('/api/save-pos-order',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify(o)
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok){
+   console.error('POS cloud sync failed:',response.status,result);
+   return {ok:false,status:response.status,error:result.error||'Cloud sync failed',details:result.details||''};
+  }
+  o.cloudSynced=true;
+  o.cloudSyncedAt=new Date().toISOString();
   save();
-
-  // Try cloud sync BEFORE clearing the cart
-  try {
-    const response = await fetch('/api/save-pos-order', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(o)
-    });
-
-    const result = await response.json().catch(() => ({}));
-
-    if (response.ok) {
-      o.cloudSynced = true;
-      save();
-      console.log('POS order synced successfully:', result);
-    } else {
-      console.error(
-        'POS cloud sync failed:',
-        response.status,
-        result
-      );
-    }
-
-  } catch (error) {
-    console.error('POS cloud sync request failed:', error);
-  }
-
-  if (printIt) {
-    printReceipt(o);
-  }
-
-  clearCart();
-  alert(`Order #${o.id} saved.`);
+  cloudStatus(`Order #${o.id} synced to Admin Dashboard.`);
+  console.log('POS order synced successfully:',result);
+  return {ok:true,result};
+ }catch(error){
+  console.error('POS cloud sync request failed:',error);
+  return {ok:false,status:0,error:error.message||'Network error'};
+ }
 }
+
+async function completeOrder(printIt){
+ if(!cart.length)return alert('Add at least one item.');
+ const subtotal=cart.reduce((s,x)=>s+x.price*x.qty,0);
+ const discount=+($('discount').value||0);
+ const delivery=+($('deliveryCharge').value||0);
+ const packing=+($('packingCharge').value||0);
+ const total=Math.max(0,subtotal-discount+delivery+packing);
+ const o={
+  id:state.billNo++,
+  date:new Date().toISOString(),
+  type:$('orderType').value,
+  payment:$('payment').value,
+  ref:$('orderRef').value,
+  customer:$('customerName').value,
+  phone:$('customerPhone').value,
+  notes:$('notes').value,
+  items:structuredClone(cart),
+  subtotal,discount,delivery,packing,total,
+  status:'Completed',
+  cloudSynced:false
+ };
+ // Local save is immediate, so billing still works if internet is down.
+ state.orders.push(o);
+ save();
+ if(printIt)printReceipt(o);
+ clearCart();
+ // Cloud sync runs immediately after the local save.
+ const sync=await syncSinglePosOrder(o);
+ if(sync.ok){
+  alert(`Order #${o.id} saved and synced.`);
+ }else{
+  cloudStatus(`Order #${o.id} saved locally. Cloud sync pending.`);
+  alert(`Order #${o.id} saved locally. Cloud sync is pending; use Settings → Sync POS Orders to Cloud.`);
+ }
+}
+
+function printReceipt(o){
+ let s=state.settings,w=window.open('','_blank','width=430,height=750');
+ w.document.write(`<html><head><title>Bill #${o.id}</title><style>body{font-family:monospace;width:280px;margin:auto;font-size:12px}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td{padding:3px 0;vertical-align:top}.r{text-align:right}hr{border:0;border-top:1px dashed #000}
+/* ===== POS PRO v3.2 layout fixes ===== */
+.logo-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.logo-img{width:96px;height:96px;object-fit:contain;border-radius:50%;background:#fff;padding:4px}
+.pos-shell{height:calc(100vh - 86px);min-height:560px}
+.pos-shell>.card{min-height:0}
+.menu-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.menu-scroll{overflow:auto;min-height:0;padding-right:2px}
+.order-panel{height:100%;min-height:0;display:grid;grid-template-rows:auto auto auto 1fr auto;overflow:hidden}
+.order-cart-scroll{overflow:auto;min-height:120px;padding-right:3px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:8px}
+.order-footer{background:#fff;padding-top:8px}
+.compact-fields label{margin-top:5px}
+.compact-fields input,.compact-fields select{padding:7px 8px}
+.order-panel .total-line{padding:3px 0}
+.order-panel .grand{padding-top:7px;margin-top:4px}
+.order-panel .btn{padding:9px 10px}
 .categories{flex:0 0 auto}
 .search{flex:0 0 auto}
 .items{align-content:start}
@@ -550,10 +561,16 @@ async function syncMenuFromCloud(){
  }catch(e){cloudStatus('Sync failed: '+e.message)}
 }
 async function syncUnsyncedOrders(){
- const pending=state.orders.filter(o=>!o.cloudSynced&&o.status!=='Voided');if(!pending.length)return cloudStatus('All POS orders are synced.');
- cloudStatus(`Syncing ${pending.length} orders…`);let ok=0;
- for(const o of pending){try{const r=await fetch('../api/save-pos-order',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});if(r.ok){o.cloudSynced=true;ok++}}catch{}}
- save();cloudStatus(`${ok}/${pending.length} POS orders synced.`)
+ const pending=state.orders.filter(o=>!o.cloudSynced&&o.status!=='Voided');
+ if(!pending.length)return cloudStatus('All POS orders are synced.');
+ cloudStatus(`Syncing ${pending.length} order${pending.length===1?'':'s'}…`);
+ let ok=0;
+ for(const o of pending){
+  const result=await syncSinglePosOrder(o);
+  if(result.ok)ok++;
+ }
+ save();
+ cloudStatus(`${ok}/${pending.length} POS orders synced.${ok<pending.length?' Check internet/API logs for pending orders.':''}`);
 }
 
 function migrateLegacy(){
@@ -562,6 +579,8 @@ function migrateLegacy(){
  }catch{}
 }
 migrateLegacy(); renderMenu(); renderCart();
+window.addEventListener('online',()=>syncUnsyncedOrders());
+setTimeout(()=>{if(navigator.onLine)syncUnsyncedOrders()},1200);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('service-worker.js').catch(()=>{});
 </script>
 </body></html>
