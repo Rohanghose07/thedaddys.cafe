@@ -346,13 +346,13 @@ function clearCart(){cart=[];['discount','deliveryCharge','packingCharge'].forEa
 async function completeOrder(printIt){
   if(!cart.length) return alert('Add at least one item.');
 
-  let subtotal = cart.reduce((s,x)=>s+x.price*x.qty,0),
-      discount = +($('discount').value||0),
-      delivery = +($('deliveryCharge').value||0),
-      packing = +($('packingCharge').value||0),
-      total = Math.max(0,subtotal-discount+delivery+packing);
+  const subtotal = cart.reduce((s,x)=>s + x.price * x.qty, 0);
+  const discount = +($('discount').value || 0);
+  const delivery = +($('deliveryCharge').value || 0);
+  const packing = +($('packingCharge').value || 0);
+  const total = Math.max(0, subtotal - discount + delivery + packing);
 
-  let o = {
+  const o = {
     id: state.billNo++,
     date: new Date().toISOString(),
     type: $('orderType').value,
@@ -370,7 +370,7 @@ async function completeOrder(printIt){
     status: 'Completed'
   };
 
-  // Always save locally first
+  // Save locally first
   state.orders.push(o);
   save();
 
@@ -379,35 +379,29 @@ async function completeOrder(printIt){
   clearCart();
   alert(`Order #${o.id} saved.`);
 
-  // Automatically sync the completed order to Supabase
-  try{
-    const r = await fetch('../api/save-pos-order', {
+  // Auto-sync to Supabase/Admin
+  try {
+    const response = await fetch('/api/save-pos-order', {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(o)
     });
 
-    if(r.ok){
-      console.log(`Order #${o.id} synced to cloud automatically.`);
-    }else{
-      console.warn(`Order #${o.id} saved locally; cloud sync failed.`);
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      console.error('POS cloud sync failed:', response.status, result);
+      return;
     }
-  }catch(err){
-    console.warn(`Order #${o.id} saved locally; cloud sync pending.`, err);
+
+    console.log('POS order synced successfully:', result);
+
+  } catch (error) {
+    console.error('POS cloud sync request failed:', error);
   }
 }
-function printReceipt(o){
- let s=state.settings,w=window.open('','_blank','width=430,height=750');
- w.document.write(`<html><head><title>Bill #${o.id}</title><style>body{font-family:monospace;width:280px;margin:auto;font-size:12px}h2,p{text-align:center}table{width:100%;border-collapse:collapse}td{padding:3px 0;vertical-align:top}.r{text-align:right}hr{border:0;border-top:1px dashed #000}
-/* ===== POS PRO v3.2 layout fixes ===== */
-.logo-wrap{display:flex;align-items:center;justify-content:center;margin-bottom:10px}
-.logo-img{width:96px;height:96px;object-fit:contain;border-radius:50%;background:#fff;padding:4px}
-.pos-shell{height:calc(100vh - 86px);min-height:560px}
-.pos-shell>.card{min-height:0}
-.menu-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden}
-.menu-scroll{overflow:auto;min-height:0;padding-right:2px}
-.order-panel{height:100%;min-height:0;display:grid;grid-template-rows:auto auto auto 1fr auto;overflow:hidden}
-.order-cart-scroll{overflow:auto;min-height:120px;padding-right:3px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:8px}
 .order-footer{background:#fff;padding-top:8px}
 .compact-fields label{margin-top:5px}
 .compact-fields input,.compact-fields select{padding:7px 8px}
