@@ -1,0 +1,9 @@
+{
+  "name": "THE DADDYS CAFE POS Pro v3",
+  "short_name": "Daddys POS v3",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#111827",
+  "icons": []
+}
